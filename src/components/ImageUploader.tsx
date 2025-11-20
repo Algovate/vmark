@@ -1,0 +1,80 @@
+import React, { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+
+interface ImageUploaderProps {
+  onImageUpload: (file: File) => void;
+}
+
+export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload }) => {
+  const { t } = useTranslation();
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        onImageUpload(e.dataTransfer.files[0]);
+      }
+    },
+    [onImageUpload]
+  );
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      onImageUpload(e.target.files[0]);
+    }
+  };
+
+  return (
+    <div
+      className="glass-panel"
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      style={{
+        padding: '3rem',
+        textAlign: 'center',
+        border: '2px dashed var(--border-color)',
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '300px',
+        transition: 'all 0.2s ease'
+      }}
+    >
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleChange}
+        style={{ display: 'none' }}
+        id="file-upload"
+      />
+      <label
+        htmlFor="file-upload"
+        style={{
+          cursor: 'pointer',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📂</div>
+        <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+          {t('upload.dragDrop')}
+        </h3>
+        <p style={{ color: 'var(--text-secondary)' }}>
+          {t('upload.supports')}
+        </p>
+      </label>
+    </div>
+  );
+};

@@ -1,0 +1,26 @@
+{
+    "app": {
+        "title": "Vmark",
+        "subtitle": "Add professional watermarks to your images securely in the browser."
+    },
+    "upload": {
+        "dragDrop": "Click or Drag & Drop Image",
+        "supports": "Supports JPG, PNG, WebP",
+        "uploadDifferent": "← Upload Different Image",
+        "loading": "Loading image...",
+        "error": "Failed to load image. Please try another file."
+    },
+    "settings": {
+        "title": "Settings",
+        "watermarkText": "Watermark Text",
+        "color": "Color",
+        "fontSize": "Font Size",
+        "opacity": "Opacity",
+        "rotation": "Rotation",
+        "repeat": "Repeat Watermark",
+        "spacing": "Spacing",
+        "exportFormat": "Export Format",
+        "quality": "Quality",
+        "download": "Download Image"
+    }
+}
