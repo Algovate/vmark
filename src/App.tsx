@@ -8,11 +8,13 @@ import { WatermarkCanvas } from './components/WatermarkCanvas';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { drawWatermarkOnCanvas } from './utils/watermarkUtils';
+import { HelpModal } from './components/HelpModal';
 
 function App() {
   const { t, i18n } = useTranslation();
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [config, setConfig] = useState<WatermarkConfig>({
     text: 'Watermark',
     color: '#ffffff',
@@ -147,6 +149,26 @@ function App() {
     }}>
       <header style={{ textAlign: 'center', marginBottom: '1rem', position: 'relative' }}>
         <button
+          onClick={() => setIsHelpOpen(true)}
+          className="glass-panel"
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            padding: '0.5rem 1rem',
+            cursor: 'pointer',
+            fontSize: '0.875rem',
+            color: 'var(--text-secondary)',
+            border: '1px solid var(--border-color)',
+            background: 'rgba(0, 0, 0, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}
+        >
+          <span>?</span> {t('help.title')}
+        </button>
+        <button
           onClick={toggleLanguage}
           className="glass-panel"
           style={{
@@ -250,6 +272,7 @@ function App() {
           </div>
         )}
       </main>
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     </div>
   );
 }

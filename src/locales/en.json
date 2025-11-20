@@ -4,8 +4,8 @@
         "subtitle": "Add professional watermarks to your images securely in the browser."
     },
     "upload": {
-        "dragDrop": "Click or Drag & Drop Image",
-        "supports": "Supports JPG, PNG, WebP",
+        "dragDrop": "Click or Drag & Drop Images (Batch Supported)",
+        "supports": "Supports JPG, PNG, WebP. Process multiple images at once.",
         "uploadDifferent": "← Upload Different Image",
         "uploadMore": "+ Add More Images",
         "loading": "Loading image...",
@@ -28,5 +28,22 @@
     "sidebar": {
         "images": "Images",
         "remove": "Remove"
+    },
+    "help": {
+        "title": "Help & Guide",
+        "gettingStarted": {
+            "title": "Getting Started",
+            "content": "Upload an image by dragging and dropping it onto the page. Use the control panel on the right to customize your watermark text, color, size, and position. You can drag the watermark on the image to position it freely."
+        },
+        "batchProcessing": {
+            "title": "Batch Processing",
+            "content": "You can upload multiple images at once! Use the sidebar to switch between images. Adjusting settings will apply to ALL images. Click 'Download All (ZIP)' to download all watermarked images in a single archive."
+        },
+        "tips": {
+            "title": "Tips",
+            "item1": "Use 'Repeat Watermark' for better protection against theft.",
+            "item2": "Adjust opacity to make the watermark subtle yet visible.",
+            "item3": "Your images are processed locally in your browser for maximum privacy."
+        }
     }
 }
