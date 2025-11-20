@@ -198,16 +198,19 @@ function App() {
         >
           {i18n.language === 'zh' ? 'English' : '中文'}
         </button>
-        <h1 style={{
-          fontSize: '2.5rem',
-          fontWeight: '800',
-          background: 'linear-gradient(to right, var(--accent-primary), var(--accent-secondary))',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          marginBottom: '0.5rem'
-        }}>
-          {t('app.title')}
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
+          <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="Vmark Logo" style={{ width: '3rem', height: '3rem' }} />
+          <h1 style={{
+            fontSize: '2.5rem',
+            fontWeight: '800',
+            background: 'linear-gradient(to right, var(--accent-primary), var(--accent-secondary))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            margin: 0
+          }}>
+            {t('app.title')}
+          </h1>
+        </div>
         <p style={{ color: 'var(--text-secondary)' }}>
           {t('app.subtitle')}
         </p>
