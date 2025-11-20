@@ -7,6 +7,7 @@
         "dragDrop": "点击或拖拽上传图片",
         "supports": "支持 JPG, PNG, WebP",
         "uploadDifferent": "← 上传其他图片",
+        "uploadMore": "+ 添加更多图片",
         "loading": "正在加载图片...",
         "error": "加载图片失败，请重试。"
     },
@@ -21,6 +22,11 @@
         "spacing": "间距",
         "exportFormat": "导出格式",
         "quality": "质量",
-        "download": "下载图片"
+        "download": "下载图片",
+        "downloadAll": "全部下载 (ZIP)"
+    },
+    "sidebar": {
+        "images": "图片列表",
+        "remove": "移除"
     }
 }

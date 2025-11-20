@@ -7,6 +7,7 @@
         "dragDrop": "Click or Drag & Drop Image",
         "supports": "Supports JPG, PNG, WebP",
         "uploadDifferent": "← Upload Different Image",
+        "uploadMore": "+ Add More Images",
         "loading": "Loading image...",
         "error": "Failed to load image. Please try another file."
     },
@@ -21,6 +22,11 @@
         "spacing": "Spacing",
         "exportFormat": "Export Format",
         "quality": "Quality",
-        "download": "Download Image"
+        "download": "Download Image",
+        "downloadAll": "Download All (ZIP)"
+    },
+    "sidebar": {
+        "images": "Images",
+        "remove": "Remove"
     }
 }

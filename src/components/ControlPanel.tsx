@@ -22,9 +22,11 @@ interface ControlPanelProps {
     onDownload: (exportOptions: ExportOptions) => void;
     exportOptions: ExportOptions;
     onExportOptionsChange: (options: ExportOptions) => void;
+    isBatchMode?: boolean;
+    onDownloadAll?: (exportOptions: ExportOptions) => void;
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ config, onChange, onDownload, exportOptions, onExportOptionsChange }) => {
+export const ControlPanel: React.FC<ControlPanelProps> = ({ config, onChange, onDownload, exportOptions, onExportOptionsChange, isBatchMode, onDownloadAll }) => {
     const { t } = useTranslation();
 
     const handleChange = (key: keyof WatermarkConfig, value: string | number | boolean) => {
@@ -199,11 +201,21 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ config, onChange, on
 
             <button
                 className="btn-primary"
-                style={{ width: '100%' }}
+                style={{ width: '100%', marginBottom: isBatchMode ? '1rem' : 0 }}
                 onClick={() => onDownload(exportOptions)}
             >
                 {t('settings.download')}
             </button>
+
+            {isBatchMode && (
+                <button
+                    className="btn-secondary"
+                    style={{ width: '100%' }}
+                    onClick={() => onDownloadAll && onDownloadAll(exportOptions)}
+                >
+                    {t('settings.downloadAll')}
+                </button>
+            )}
         </div>
     );
 };

@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface ImageUploaderProps {
-  onImageUpload: (file: File) => void;
+  onImageUpload: (files: File[]) => void;
 }
 
 export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload }) => {
@@ -12,8 +12,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload }) =
       e.preventDefault();
       e.stopPropagation();
 
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        onImageUpload(e.dataTransfer.files[0]);
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        onImageUpload(Array.from(e.dataTransfer.files));
       }
     },
     [onImageUpload]
@@ -25,8 +25,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload }) =
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      onImageUpload(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      onImageUpload(Array.from(e.target.files));
     }
   };
 
@@ -51,6 +51,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload }) =
       <input
         type="file"
         accept="image/*"
+        multiple
         onChange={handleChange}
         style={{ display: 'none' }}
         id="file-upload"

@@ -3,11 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { ImageUploader } from './components/ImageUploader';
 import { ControlPanel } from './components/ControlPanel';
 import type { WatermarkConfig, ExportOptions } from './components/ControlPanel';
+import { ImageSidebar } from './components/ImageSidebar';
 import { WatermarkCanvas } from './components/WatermarkCanvas';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+import { drawWatermarkOnCanvas } from './utils/watermarkUtils';
 
 function App() {
   const { t, i18n } = useTranslation();
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [config, setConfig] = useState<WatermarkConfig>({
     text: 'Watermark',
     color: '#ffffff',
@@ -30,10 +35,12 @@ function App() {
   };
 
   const handleDownload = (options: ExportOptions) => {
-    if (!canvasRef.current || !imageFile) return;
+    if (!canvasRef.current || imageFiles.length === 0) return;
+
+    const currentFile = imageFiles[selectedImageIndex];
 
     // Generate filename based on original file name
-    const originalName = imageFile.name;
+    const originalName = currentFile.name;
     const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
     const extension = options.format;
     const downloadName = `${nameWithoutExt}-watermarked.${extension}`;
@@ -60,6 +67,74 @@ function App() {
     link.download = downloadName;
     link.href = canvasRef.current.toDataURL(mimeType, quality);
     link.click();
+    link.click();
+  };
+
+  const handleBatchDownload = async (options: ExportOptions) => {
+    if (imageFiles.length === 0) return;
+
+    const zip = new JSZip();
+    const folder = zip.folder('watermarked_images');
+    if (!folder) return;
+
+    // Process each image
+    const promises = imageFiles.map((file) => {
+      return new Promise<void>((resolve) => {
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          drawWatermarkOnCanvas(canvas, img, config);
+
+          // Determine MIME type and quality
+          let mimeType: string;
+          let quality: number | undefined;
+
+          switch (options.format) {
+            case 'jpeg':
+              mimeType = 'image/jpeg';
+              quality = options.quality;
+              break;
+            case 'webp':
+              mimeType = 'image/webp';
+              quality = options.quality;
+              break;
+            default:
+              mimeType = 'image/png';
+              quality = undefined;
+          }
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const originalName = file.name;
+                const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+                const extension = options.format;
+                const filename = `${nameWithoutExt}-watermarked.${extension}`;
+                folder.file(filename, blob);
+              }
+              URL.revokeObjectURL(img.src);
+              resolve();
+            },
+            mimeType,
+            quality
+          );
+        };
+      });
+    });
+
+    await Promise.all(promises);
+    const content = await zip.generateAsync({ type: 'blob' });
+    saveAs(content, 'watermarked_images.zip');
+  };
+
+  const handleRemoveImage = (index: number) => {
+    const newFiles = [...imageFiles];
+    newFiles.splice(index, 1);
+    setImageFiles(newFiles);
+    if (selectedImageIndex >= newFiles.length) {
+      setSelectedImageIndex(Math.max(0, newFiles.length - 1));
+    }
   };
 
   return (
@@ -113,9 +188,9 @@ function App() {
         margin: '0 auto',
         width: '100%'
       }}>
-        {!imageFile ? (
+        {imageFiles.length === 0 ? (
           <div style={{ width: '100%', maxWidth: '600px', marginTop: '4rem' }}>
-            <ImageUploader onImageUpload={setImageFile} />
+            <ImageUploader onImageUpload={(files) => setImageFiles(files)} />
           </div>
         ) : (
           <div style={{
@@ -126,19 +201,41 @@ function App() {
             justifyContent: 'center',
             alignItems: 'flex-start'
           }}>
-            <div style={{ flex: '1 1 500px', minWidth: '300px' }}>
-              <WatermarkCanvas
-                imageFile={imageFile}
-                config={config}
-                onCanvasReady={(canvas) => canvasRef.current = canvas}
-              />
-              <button
-                className="btn-secondary"
-                onClick={() => setImageFile(null)}
-                style={{ marginTop: '1rem' }}
-              >
-                {t('upload.uploadDifferent')}
-              </button>
+            <div style={{ flex: '1 1 500px', minWidth: '300px', display: 'flex', gap: '1rem' }}>
+              {imageFiles.length > 1 && (
+                <ImageSidebar
+                  images={imageFiles}
+                  selectedIndex={selectedImageIndex}
+                  onSelect={setSelectedImageIndex}
+                  onRemove={handleRemoveImage}
+                />
+              )}
+              <div style={{ flex: 1 }}>
+                <WatermarkCanvas
+                  imageFile={imageFiles[selectedImageIndex]}
+                  config={config}
+                  onCanvasReady={(canvas) => canvasRef.current = canvas}
+                />
+                <button
+                  className="btn-secondary"
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.multiple = true;
+                    input.accept = 'image/*';
+                    input.onchange = (e) => {
+                      const files = (e.target as HTMLInputElement).files;
+                      if (files && files.length > 0) {
+                        setImageFiles([...imageFiles, ...Array.from(files)]);
+                      }
+                    };
+                    input.click();
+                  }}
+                  style={{ marginTop: '1rem' }}
+                >
+                  {t('upload.uploadMore')}
+                </button>
+              </div>
             </div>
 
             <ControlPanel
@@ -147,6 +244,8 @@ function App() {
               onDownload={handleDownload}
               exportOptions={exportOptions}
               onExportOptionsChange={setExportOptions}
+              isBatchMode={imageFiles.length > 1}
+              onDownloadAll={handleBatchDownload}
             />
           </div>
         )}

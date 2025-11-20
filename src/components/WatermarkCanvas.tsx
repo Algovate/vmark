@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WatermarkConfig } from './ControlPanel';
 
@@ -55,111 +55,22 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
         };
     }, [imageFile]);
 
-    // Memoize text dimensions calculation to avoid recalculating on every render
-    const textDimensions = useMemo(() => {
-        if (!image) return null;
-
-        // Create a temporary canvas to measure text
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-        if (!tempCtx) return null;
-
-        tempCtx.font = `bold ${config.fontSize}px Inter, sans-serif`;
-        const lines = config.text.split('\n');
-        const lineHeight = config.fontSize * 1.2;
-        const totalHeight = lines.length * lineHeight;
-        const maxWidth = Math.max(...lines.map(line => tempCtx.measureText(line).width));
-
-        return { lines, lineHeight, totalHeight, maxWidth };
-    }, [config.text, config.fontSize, image]);
-
     // Draw canvas with debouncing for repeat mode
     useEffect(() => {
         const canvas = canvasRef.current;
-        if (!canvas || !image || !textDimensions) return;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+        if (!canvas || !image) return;
 
         // Use requestAnimationFrame for smooth rendering
         const drawFrame = requestAnimationFrame(() => {
-            // Set canvas size to match image
-            canvas.width = image.width;
-            canvas.height = image.height;
-
-            // Draw background image
-            ctx.drawImage(image, 0, 0);
-
-            // Function to draw a single watermark at a given position
-            const drawWatermark = (x: number, y: number) => {
-                ctx.save();
-                ctx.translate(x, y);
-                ctx.rotate((config.rotation * Math.PI) / 180);
-                ctx.globalAlpha = config.opacity;
-                ctx.font = `bold ${config.fontSize}px Inter, sans-serif`;
-                ctx.fillStyle = config.color;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-
-                const { lines, lineHeight, totalHeight } = textDimensions;
-
-                // Start drawing from the top-most line to center the block of text vertically
-                const startY = -(totalHeight - lineHeight) / 2;
-
-                lines.forEach((line, index) => {
-                    ctx.fillText(line, 0, startY + (index * lineHeight));
-                });
-
-                ctx.restore();
-            };
-
-            if (config.repeat) {
-                // Repeat mode: draw watermarks in a grid pattern
-                // Use cached text dimensions
-                const { totalHeight, maxWidth } = textDimensions;
-
-                // Calculate spacing considering rotation
-                const rotationRad = (config.rotation * Math.PI) / 180;
-                const cos = Math.abs(Math.cos(rotationRad));
-                const sin = Math.abs(Math.sin(rotationRad));
-
-                // Bounding box dimensions after rotation
-                const rotatedWidth = maxWidth * cos + totalHeight * sin;
-                const rotatedHeight = maxWidth * sin + totalHeight * cos;
-
-                // Spacing between watermarks
-                const spacingX = rotatedWidth + config.spacing;
-                const spacingY = rotatedHeight + config.spacing;
-
-                // Calculate starting position to cover the entire canvas
-                // Start from negative offset to ensure full coverage
-                const startX = -spacingX;
-                const startY = -spacingY;
-
-                // Draw watermarks in a grid pattern
-                // Optimize: limit the number of watermarks for very large canvases
-                const maxWatermarks = 1000; // Reasonable limit
-                let watermarkCount = 0;
-
-                for (let y = startY; y < canvas.height + spacingY && watermarkCount < maxWatermarks; y += spacingY) {
-                    for (let x = startX; x < canvas.width + spacingX && watermarkCount < maxWatermarks; x += spacingX) {
-                        drawWatermark(x, y);
-                        watermarkCount++;
-                    }
-                }
-            } else {
-                // Single mode: draw watermark at the specified position (draggable)
-                const x = (canvas.width * position.x) / 100;
-                const y = (canvas.height * position.y) / 100;
-                drawWatermark(x, y);
-            }
-
-            // Notify parent that canvas is updated (for download)
-            onCanvasReady(canvas);
+            import('../utils/watermarkUtils').then(({ drawWatermarkOnCanvas }) => {
+                drawWatermarkOnCanvas(canvas, image, config, position);
+                // Notify parent that canvas is updated (for download)
+                onCanvasReady(canvas);
+            });
         });
 
         return () => cancelAnimationFrame(drawFrame);
-    }, [image, config, position, onCanvasReady, textDimensions]);
+    }, [image, config, position, onCanvasReady]);
 
     // Handle Dragging
     const handleMouseDown = () => {
