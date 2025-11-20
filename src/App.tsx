@@ -16,13 +16,15 @@ function App() {
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [config, setConfig] = useState<WatermarkConfig>({
+    type: 'text',
     text: 'Watermark',
     color: '#ffffff',
     fontSize: 48,
     opacity: 0.8,
     rotation: 0,
     repeat: false,
-    spacing: 200
+    spacing: 200,
+    imageSize: 100
   });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -79,6 +81,17 @@ function App() {
     const folder = zip.folder('watermarked_images');
     if (!folder) return;
 
+    // Load watermark image if needed
+    let watermarkImg: HTMLImageElement | undefined;
+    if (config.type === 'image' && config.imageFile) {
+      watermarkImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.src = URL.createObjectURL(config.imageFile!);
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+      });
+    }
+
     // Process each image
     const promises = imageFiles.map((file) => {
       return new Promise<void>((resolve) => {
@@ -86,7 +99,7 @@ function App() {
         img.src = URL.createObjectURL(file);
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          drawWatermarkOnCanvas(canvas, img, config);
+          drawWatermarkOnCanvas(canvas, img, config, undefined, watermarkImg);
 
           // Determine MIME type and quality
           let mimeType: string;

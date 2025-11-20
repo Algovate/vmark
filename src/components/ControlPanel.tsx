@@ -1,7 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
+export type WatermarkType = 'text' | 'image';
+
 export interface WatermarkConfig {
+    type: WatermarkType;
     text: string;
     color: string;
     fontSize: number;
@@ -9,6 +12,8 @@ export interface WatermarkConfig {
     rotation: number;
     repeat: boolean;
     spacing: number;
+    imageFile?: File;
+    imageSize: number; // percentage 10-200
 }
 
 export interface ExportOptions {
@@ -29,7 +34,7 @@ interface ControlPanelProps {
 export const ControlPanel: React.FC<ControlPanelProps> = ({ config, onChange, onDownload, exportOptions, onExportOptionsChange, isBatchMode, onDownloadAll }) => {
     const { t } = useTranslation();
 
-    const handleChange = (key: keyof WatermarkConfig, value: string | number | boolean) => {
+    const handleChange = (key: keyof WatermarkConfig, value: string | number | boolean | File) => {
         onChange({ ...config, [key]: value });
     };
 
@@ -45,61 +50,172 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ config, onChange, on
         <div className="glass-panel" style={{ padding: '1.5rem', width: '300px', flexShrink: 0 }}>
             <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>{t('settings.title')}</h2>
 
-            <div style={{ marginBottom: '1.5rem' }}>
-                <label>{t('settings.watermarkText')}</label>
-                <textarea
-                    value={config.text}
-                    onChange={(e) => handleChange('text', e.target.value)}
-                    style={{
-                        width: '100%',
-                        minHeight: '80px',
-                        resize: 'vertical',
-                        background: 'rgba(0, 0, 0, 0.2)',
-                        border: '1px solid var(--border-color)',
-                        color: 'var(--text-primary)',
-                        padding: 'var(--spacing-xs) var(--spacing-sm)',
-                        borderRadius: 'var(--radius-sm)',
-                        outline: 'none',
-                        fontFamily: 'inherit'
-                    }}
-                />
-            </div>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-                <label>{t('settings.color')}</label>
+            <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                <label style={{ marginBottom: '0.75rem', display: 'block' }}>{t('settings.watermarkType')}</label>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <input
-                        type="color"
-                        value={config.color}
-                        onChange={(e) => handleChange('color', e.target.value)}
+                    <button
+                        onClick={() => handleChange('type', 'text')}
                         style={{
-                            width: '40px',
-                            height: '40px',
-                            border: 'none',
-                            borderRadius: '8px',
+                            flex: 1,
+                            padding: '0.5rem',
+                            border: `1px solid ${config.type === 'text' ? 'var(--accent-primary)' : 'var(--border-color)'}`,
+                            borderRadius: 'var(--radius-sm)',
+                            background: config.type === 'text'
+                                ? 'rgba(59, 130, 246, 0.2)'
+                                : 'rgba(0, 0, 0, 0.2)',
+                            color: 'var(--text-primary)',
                             cursor: 'pointer',
-                            backgroundColor: 'transparent'
+                            fontSize: '0.875rem',
+                            fontWeight: config.type === 'text' ? '600' : '400',
+                            transition: 'var(--transition-fast)'
                         }}
-                    />
-                    <input
-                        type="text"
-                        value={config.color}
-                        onChange={(e) => handleChange('color', e.target.value)}
-                        style={{ flex: 1 }}
-                    />
+                    >
+                        {t('settings.textWatermark')}
+                    </button>
+                    <button
+                        onClick={() => handleChange('type', 'image')}
+                        style={{
+                            flex: 1,
+                            padding: '0.5rem',
+                            border: `1px solid ${config.type === 'image' ? 'var(--accent-primary)' : 'var(--border-color)'}`,
+                            borderRadius: 'var(--radius-sm)',
+                            background: config.type === 'image'
+                                ? 'rgba(59, 130, 246, 0.2)'
+                                : 'rgba(0, 0, 0, 0.2)',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem',
+                            fontWeight: config.type === 'image' ? '600' : '400',
+                            transition: 'var(--transition-fast)'
+                        }}
+                    >
+                        {t('settings.imageWatermark')}
+                    </button>
                 </div>
             </div>
 
-            <div style={{ marginBottom: '1.5rem' }}>
-                <label>{t('settings.fontSize')} ({config.fontSize}px)</label>
-                <input
-                    type="range"
-                    min="12"
-                    max="200"
-                    value={config.fontSize}
-                    onChange={(e) => handleChange('fontSize', Number(e.target.value))}
-                />
-            </div>
+            {config.type === 'text' && (
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <label>{t('settings.watermarkText')}</label>
+                    <textarea
+                        value={config.text}
+                        onChange={(e) => handleChange('text', e.target.value)}
+                        style={{
+                            width: '100%',
+                            minHeight: '80px',
+                            resize: 'vertical',
+                            background: 'rgba(0, 0, 0, 0.2)',
+                            border: '1px solid var(--border-color)',
+                            color: 'var(--text-primary)',
+                            padding: 'var(--spacing-xs) var(--spacing-sm)',
+                            borderRadius: 'var(--radius-sm)',
+                            outline: 'none',
+                            fontFamily: 'inherit'
+                        }}
+                    />
+                </div>
+            )}
+
+            {config.type === 'image' && (
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ marginBottom: '0.75rem', display: 'block' }}>
+                        {config.imageFile ? t('settings.watermarkImagePreview') : t('settings.uploadWatermarkImage')}
+                    </label>
+                    {config.imageFile && (
+                        <div style={{
+                            marginBottom: '0.75rem',
+                            padding: '0.5rem',
+                            background: 'rgba(0, 0, 0, 0.2)',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--border-color)',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center'
+                        }}>
+                            <img
+                                src={URL.createObjectURL(config.imageFile)}
+                                alt="Watermark preview"
+                                style={{
+                                    maxWidth: '100%',
+                                    maxHeight: '120px',
+                                    objectFit: 'contain'
+                                }}
+                            />
+                        </div>
+                    )}
+                    <button
+                        className="btn-secondary"
+                        onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = 'image/*';
+                            input.onchange = (e) => {
+                                const file = (e.target as HTMLInputElement).files?.[0];
+                                if (file) {
+                                    handleChange('imageFile', file);
+                                }
+                            };
+                            input.click();
+                        }}
+                        style={{ width: '100%' }}
+                    >
+                        {config.imageFile ? t('settings.changeWatermarkImage') : t('settings.uploadWatermarkImage')}
+                    </button>
+                </div>
+            )}
+
+            {config.type === 'text' && (
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <label>{t('settings.color')}</label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <input
+                            type="color"
+                            value={config.color}
+                            onChange={(e) => handleChange('color', e.target.value)}
+                            style={{
+                                width: '40px',
+                                height: '40px',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                backgroundColor: 'transparent'
+                            }}
+                        />
+                        <input
+                            type="text"
+                            value={config.color}
+                            onChange={(e) => handleChange('color', e.target.value)}
+                            style={{ flex: 1 }}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {config.type === 'text' && (
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <label>{t('settings.fontSize')} ({config.fontSize}px)</label>
+                    <input
+                        type="range"
+                        min="12"
+                        max="200"
+                        value={config.fontSize}
+                        onChange={(e) => handleChange('fontSize', Number(e.target.value))}
+                    />
+                </div>
+            )}
+
+            {config.type === 'image' && (
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <label>{t('settings.imageSize')} ({config.imageSize}%)</label>
+                    <input
+                        type="range"
+                        min="10"
+                        max="200"
+                        value={config.imageSize}
+                        onChange={(e) => handleChange('imageSize', Number(e.target.value))}
+                    />
+                </div>
+            )}
 
             <div style={{ marginBottom: '1.5rem' }}>
                 <label>{t('settings.opacity')} ({Math.round(config.opacity * 100)}%)</label>

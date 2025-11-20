@@ -12,6 +12,7 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
     const { t } = useTranslation();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [image, setImage] = useState<HTMLImageElement | null>(null);
+    const [watermarkImage, setWatermarkImage] = useState<HTMLImageElement | null>(null);
     const [position, setPosition] = useState({ x: 50, y: 50 }); // Percentage 0-100
     const [isDragging, setIsDragging] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -55,22 +56,49 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
         };
     }, [imageFile]);
 
+    // Load watermark image when config.imageFile changes
+    useEffect(() => {
+        if (config.type !== 'image' || !config.imageFile) {
+            setWatermarkImage(null);
+            return;
+        }
+
+        const objectUrl = URL.createObjectURL(config.imageFile);
+        const img = new Image();
+        img.src = objectUrl;
+
+        img.onload = () => {
+            setWatermarkImage(img);
+        };
+
+        img.onerror = () => {
+            setWatermarkImage(null);
+        };
+
+        return () => {
+            // Cleanup handled by browser on page close
+        };
+    }, [config.type, config.imageFile]);
+
     // Draw canvas with debouncing for repeat mode
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas || !image) return;
 
+        // For image watermarks, wait until watermark image is loaded
+        if (config.type === 'image' && !watermarkImage) return;
+
         // Use requestAnimationFrame for smooth rendering
         const drawFrame = requestAnimationFrame(() => {
             import('../utils/watermarkUtils').then(({ drawWatermarkOnCanvas }) => {
-                drawWatermarkOnCanvas(canvas, image, config, position);
+                drawWatermarkOnCanvas(canvas, image, config, position, watermarkImage || undefined);
                 // Notify parent that canvas is updated (for download)
                 onCanvasReady(canvas);
             });
         });
 
         return () => cancelAnimationFrame(drawFrame);
-    }, [image, config, position, onCanvasReady]);
+    }, [image, config, position, onCanvasReady, watermarkImage]);
 
     // Handle Dragging
     const handleMouseDown = () => {
