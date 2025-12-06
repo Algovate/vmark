@@ -166,48 +166,150 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
         // Draw watermark only
         if (currentConfig.type === 'image' && currentWatermarkImage) {
             // Image watermark
-            ctx.save();
-            const x = (canvas.width * positionToUse.x) / 100;
-            const y = (canvas.height * positionToUse.y) / 100;
-            ctx.translate(x, y);
-            ctx.rotate((currentConfig.rotation * Math.PI) / 180);
-            ctx.globalAlpha = currentConfig.opacity;
-
             const baseSize = Math.min(canvas.width, canvas.height);
             const scaleFactor = (currentConfig.imageSize / 100) * (baseSize / 500);
             const watermarkWidth = currentWatermarkImage.width * scaleFactor;
             const watermarkHeight = currentWatermarkImage.height * scaleFactor;
 
-            ctx.drawImage(
-                currentWatermarkImage,
-                -watermarkWidth / 2,
-                -watermarkHeight / 2,
-                watermarkWidth,
-                watermarkHeight
-            );
-            ctx.restore();
+            // Function to draw a single image watermark at a given position
+            const drawSingleImageWatermark = (x: number, y: number) => {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate((currentConfig.rotation * Math.PI) / 180);
+                ctx.globalAlpha = currentConfig.opacity;
+
+                ctx.drawImage(
+                    currentWatermarkImage,
+                    -watermarkWidth / 2,
+                    -watermarkHeight / 2,
+                    watermarkWidth,
+                    watermarkHeight
+                );
+                ctx.restore();
+            };
+
+            if (currentConfig.repeat) {
+                // Repeat mode: draw watermarks in a grid pattern
+                // Calculate spacing considering rotation
+                const rotationRad = (currentConfig.rotation * Math.PI) / 180;
+                const cos = Math.abs(Math.cos(rotationRad));
+                const sin = Math.abs(Math.sin(rotationRad));
+
+                // Bounding box dimensions after rotation
+                const rotatedWidth = watermarkWidth * cos + watermarkHeight * sin;
+                const rotatedHeight = watermarkWidth * sin + watermarkHeight * cos;
+
+                // Spacing between watermarks
+                const spacingX = rotatedWidth + currentConfig.spacing;
+                const spacingY = rotatedHeight + currentConfig.spacing;
+
+                // Calculate starting position to cover the entire canvas
+                const startX = -spacingX;
+                const startY = -spacingY;
+
+                // Draw watermarks in a grid pattern
+                const maxWatermarks = 2000;
+                let watermarkCount = 0;
+
+                for (
+                    let y = startY;
+                    y < canvas.height + spacingY && watermarkCount < maxWatermarks;
+                    y += spacingY
+                ) {
+                    for (
+                        let x = startX;
+                        x < canvas.width + spacingX && watermarkCount < maxWatermarks;
+                        x += spacingX
+                    ) {
+                        drawSingleImageWatermark(x, y);
+                        watermarkCount++;
+                    }
+                }
+            } else {
+                // Single mode: draw watermark at the specified position
+                const x = (canvas.width * positionToUse.x) / 100;
+                const y = (canvas.height * positionToUse.y) / 100;
+                drawSingleImageWatermark(x, y);
+            }
         } else if (currentConfig.type === 'text') {
             // Text watermark
-            ctx.save();
-            const x = (canvas.width * positionToUse.x) / 100;
-            const y = (canvas.height * positionToUse.y) / 100;
-            ctx.translate(x, y);
-            ctx.rotate((currentConfig.rotation * Math.PI) / 180);
-            ctx.globalAlpha = currentConfig.opacity;
-            ctx.font = `bold ${currentConfig.fontSize}px Inter, sans-serif`;
-            ctx.fillStyle = currentConfig.color;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-
             const lines = currentConfig.text.split('\n');
             const lineHeight = currentConfig.fontSize * 1.2;
             const totalHeight = lines.length * lineHeight;
-            const startY = -(totalHeight - lineHeight) / 2;
 
-            lines.forEach((line, index) => {
-                ctx.fillText(line, 0, startY + index * lineHeight);
+            // Calculate text width for bounding box
+            ctx.font = `bold ${currentConfig.fontSize}px Inter, sans-serif`;
+            let maxWidth = 0;
+            lines.forEach((line) => {
+                const width = ctx.measureText(line).width;
+                if (width > maxWidth) {
+                    maxWidth = width;
+                }
             });
-            ctx.restore();
+
+            // Function to draw a single text watermark at a given position
+            const drawSingleTextWatermark = (x: number, y: number) => {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate((currentConfig.rotation * Math.PI) / 180);
+                ctx.globalAlpha = currentConfig.opacity;
+                ctx.font = `bold ${currentConfig.fontSize}px Inter, sans-serif`;
+                ctx.fillStyle = currentConfig.color;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                const startY = -(totalHeight - lineHeight) / 2;
+
+                lines.forEach((line, index) => {
+                    ctx.fillText(line, 0, startY + index * lineHeight);
+                });
+
+                ctx.restore();
+            };
+
+            if (currentConfig.repeat) {
+                // Repeat mode: draw watermarks in a grid pattern
+                // Calculate spacing considering rotation
+                const rotationRad = (currentConfig.rotation * Math.PI) / 180;
+                const cos = Math.abs(Math.cos(rotationRad));
+                const sin = Math.abs(Math.sin(rotationRad));
+
+                // Bounding box dimensions after rotation
+                const rotatedWidth = maxWidth * cos + totalHeight * sin;
+                const rotatedHeight = maxWidth * sin + totalHeight * cos;
+
+                // Spacing between watermarks
+                const spacingX = rotatedWidth + currentConfig.spacing;
+                const spacingY = rotatedHeight + currentConfig.spacing;
+
+                // Calculate starting position to cover the entire canvas
+                const startX = -spacingX;
+                const startY = -spacingY;
+
+                // Draw watermarks in a grid pattern
+                const maxWatermarks = 2000;
+                let watermarkCount = 0;
+
+                for (
+                    let y = startY;
+                    y < canvas.height + spacingY && watermarkCount < maxWatermarks;
+                    y += spacingY
+                ) {
+                    for (
+                        let x = startX;
+                        x < canvas.width + spacingX && watermarkCount < maxWatermarks;
+                        x += spacingX
+                    ) {
+                        drawSingleTextWatermark(x, y);
+                        watermarkCount++;
+                    }
+                }
+            } else {
+                // Single mode: draw watermark at the specified position
+                const x = (canvas.width * positionToUse.x) / 100;
+                const y = (canvas.height * positionToUse.y) / 100;
+                drawSingleTextWatermark(x, y);
+            }
         }
         
         // Notify parent that canvas is updated (for download) only when not dragging
