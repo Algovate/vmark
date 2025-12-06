@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 
 export type ToastType = 'success' | 'error' | 'info' | 'loading';
 
@@ -192,32 +192,32 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove
 export const useToast = () => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const showToast = (message: string, type: ToastType = 'info', duration?: number) => {
+  const showToast = useCallback((message: string, type: ToastType = 'info', duration?: number) => {
     const id = Math.random().toString(36).substring(7);
     const newToast: Toast = { id, message, type, duration };
     setToasts((prev) => [...prev, newToast]);
     return id;
-  };
+  }, []);
 
-  const removeToast = (id: string) => {
+  const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  };
+  }, []);
 
-  const updateToast = (id: string, updates: Partial<Toast>) => {
+  const updateToast = useCallback((id: string, updates: Partial<Toast>) => {
     setToasts((prev) =>
       prev.map((toast) => (toast.id === id ? { ...toast, ...updates } : toast))
     );
-  };
+  }, []);
 
   return {
     toasts,
     showToast,
     removeToast,
     updateToast,
-    success: (message: string, duration?: number) => showToast(message, 'success', duration),
-    error: (message: string, duration?: number) => showToast(message, 'error', duration),
-    info: (message: string, duration?: number) => showToast(message, 'info', duration),
-    loading: (message: string) => showToast(message, 'loading'),
+    success: useCallback((message: string, duration?: number) => showToast(message, 'success', duration), [showToast]),
+    error: useCallback((message: string, duration?: number) => showToast(message, 'error', duration), [showToast]),
+    info: useCallback((message: string, duration?: number) => showToast(message, 'info', duration), [showToast]),
+    loading: useCallback((message: string) => showToast(message, 'loading'), [showToast]),
   };
 };
 

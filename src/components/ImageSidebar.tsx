@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface ImageSidebarProps {
@@ -15,6 +15,23 @@ export const ImageSidebar: React.FC<ImageSidebarProps> = ({
     onRemove,
 }) => {
     const { t } = useTranslation();
+    const [imageUrls, setImageUrls] = useState<Map<number, string>>(new Map());
+
+    // Manage object URLs for image previews
+    useEffect(() => {
+        const urlMap = new Map<number, string>();
+        images.forEach((file, index) => {
+            const url = URL.createObjectURL(file);
+            urlMap.set(index, url);
+        });
+
+        setImageUrls(urlMap);
+
+        return () => {
+            // Cleanup all object URLs
+            urlMap.forEach((url) => URL.revokeObjectURL(url));
+        };
+    }, [images]);
 
     return (
         <div
@@ -85,16 +102,17 @@ export const ImageSidebar: React.FC<ImageSidebarProps> = ({
                                 backgroundColor: '#000',
                             }}
                         >
-                            <img
-                                src={URL.createObjectURL(file)}
-                                alt={file.name}
-                                style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    objectFit: 'cover',
-                                }}
-                                onLoad={(e) => URL.revokeObjectURL(e.currentTarget.src)}
-                            />
+                            {imageUrls.get(index) && (
+                                <img
+                                    src={imageUrls.get(index)!}
+                                    alt={file.name}
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        objectFit: 'cover',
+                                    }}
+                                />
+                            )}
                         </div>
                         <div
                             style={{

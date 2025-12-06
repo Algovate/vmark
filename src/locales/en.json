@@ -9,7 +9,10 @@
         "uploadDifferent": "← Upload Different Image",
         "uploadMore": "+ Add More Images",
         "loading": "Loading image...",
-        "error": "Failed to load image. Please try another file."
+        "error": "Failed to load image. Please try another file.",
+        "success": "Image uploaded successfully",
+        "successMultiple": "{{count}} images uploaded successfully",
+        "added": "{{count}} image(s) added"
     },
     "settings": {
         "title": "Settings",
@@ -30,11 +33,15 @@
         "exportFormat": "Export Format",
         "quality": "Quality",
         "download": "Download Image",
-        "downloadAll": "Download All (ZIP)"
+        "downloadAll": "Download All (ZIP)",
+        "downloadSuccess": "Image downloaded successfully",
+        "downloadAllSuccess": "Successfully downloaded {{count}} images",
+        "processing": "Processing {{current}} / {{total}} images..."
     },
     "sidebar": {
         "images": "Images",
-        "remove": "Remove"
+        "remove": "Remove",
+        "removed": "Image removed"
     },
     "help": {
         "title": "Help & Guide",

@@ -9,7 +9,10 @@
         "uploadDifferent": "← 上传其他图片",
         "uploadMore": "+ 添加更多图片",
         "loading": "正在加载图片...",
-        "error": "加载图片失败，请重试。"
+        "error": "加载图片失败，请重试。",
+        "success": "图片上传成功",
+        "successMultiple": "成功上传 {{count}} 张图片",
+        "added": "已添加 {{count}} 张图片"
     },
     "settings": {
         "title": "设置",
@@ -30,11 +33,15 @@
         "exportFormat": "导出格式",
         "quality": "质量",
         "download": "下载图片",
-        "downloadAll": "全部下载 (ZIP)"
+        "downloadAll": "全部下载 (ZIP)",
+        "downloadSuccess": "图片下载成功",
+        "downloadAllSuccess": "成功下载 {{count}} 张图片",
+        "processing": "正在处理 {{current}} / {{total}} 张图片..."
     },
     "sidebar": {
         "images": "图片列表",
-        "remove": "移除"
+        "remove": "移除",
+        "removed": "图片已移除"
     },
     "help": {
         "title": "使用帮助",

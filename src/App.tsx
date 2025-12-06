@@ -100,7 +100,7 @@ function App() {
       link.download = downloadName;
       link.href = canvasRef.current.toDataURL(mimeType, quality);
       link.click();
-      toast.success(t('settings.download') || 'Image downloaded successfully');
+      toast.success(t('settings.downloadSuccess') || 'Image downloaded successfully');
     } catch (error) {
       toast.error(t('upload.error') || 'Failed to download image');
     }
@@ -113,7 +113,7 @@ function App() {
     }
 
     const loadingToastId = toast.loading(
-      t('settings.downloadAll') || `Processing ${imageFiles.length} images...`
+      t('settings.processing', { current: 0, total: imageFiles.length }) || `Processing ${imageFiles.length} images...`
     );
     setBatchProgress({ current: 0, total: imageFiles.length });
 
@@ -128,10 +128,12 @@ function App() {
 
       // Load watermark image if needed
       let watermarkImg: HTMLImageElement | undefined;
+      let watermarkObjectUrl: string | undefined;
       if (config.type === 'image' && config.imageFile) {
+        watermarkObjectUrl = URL.createObjectURL(config.imageFile);
         watermarkImg = await new Promise<HTMLImageElement>((resolve, reject) => {
           const img = new Image();
-          img.src = URL.createObjectURL(config.imageFile!);
+          img.src = watermarkObjectUrl!;
           img.onload = () => resolve(img);
           img.onerror = reject;
         });
@@ -197,12 +199,21 @@ function App() {
       const content = await zip.generateAsync({ type: 'blob' });
       saveAs(content, 'watermarked_images.zip');
       
+      // Cleanup watermark object URL
+      if (watermarkObjectUrl) {
+        URL.revokeObjectURL(watermarkObjectUrl);
+      }
+      
       toast.removeToast(loadingToastId);
       toast.success(
-        t('settings.downloadAll') || `Successfully downloaded ${imageFiles.length} images`
+        t('settings.downloadAllSuccess', { count: imageFiles.length }) || `Successfully downloaded ${imageFiles.length} images`
       );
       setBatchProgress(null);
     } catch (error) {
+      // Cleanup watermark object URL on error
+      if (watermarkObjectUrl) {
+        URL.revokeObjectURL(watermarkObjectUrl);
+      }
       toast.removeToast(loadingToastId);
       toast.error(t('upload.error') || 'Failed to download images');
       setBatchProgress(null);
@@ -216,7 +227,7 @@ function App() {
     if (selectedImageIndex >= newFiles.length) {
       setSelectedImageIndex(Math.max(0, newFiles.length - 1));
     }
-    toast.info(t('sidebar.remove') || 'Image removed');
+    toast.info(t('sidebar.removed') || 'Image removed');
   };
 
   const handleImageUpload = (files: File[]) => {
@@ -224,8 +235,8 @@ function App() {
     if (files.length > 0) {
       toast.success(
         files.length === 1
-          ? t('upload.uploadMore') || 'Image uploaded successfully'
-          : `${files.length} images uploaded successfully`
+          ? t('upload.success') || 'Image uploaded successfully'
+          : t('upload.successMultiple', { count: files.length }) || `${files.length} images uploaded successfully`
       );
     }
   };
@@ -364,7 +375,7 @@ function App() {
                       if (files && files.length > 0) {
                         const newFiles = [...imageFiles, ...Array.from(files)];
                         setImageFiles(newFiles);
-                        toast.success(`${files.length} image(s) added`);
+                        toast.success(t('upload.added', { count: files.length }) || `${files.length} image(s) added`);
                       }
                     };
                     input.click();

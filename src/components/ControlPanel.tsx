@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export type WatermarkType = 'text' | 'image';
@@ -34,6 +34,20 @@ interface ControlPanelProps {
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({ config, onChange, onDownload, exportOptions, onExportOptionsChange, isBatchMode, onDownloadAll, batchProgress }) => {
     const { t } = useTranslation();
+    const [watermarkPreviewUrl, setWatermarkPreviewUrl] = useState<string | null>(null);
+
+    // Handle watermark image preview URL cleanup
+    useEffect(() => {
+        if (config.type === 'image' && config.imageFile) {
+            const objectUrl = URL.createObjectURL(config.imageFile);
+            setWatermarkPreviewUrl(objectUrl);
+            return () => {
+                URL.revokeObjectURL(objectUrl);
+            };
+        } else {
+            setWatermarkPreviewUrl(null);
+        }
+    }, [config.type, config.imageFile]);
 
     const handleChange = (key: keyof WatermarkConfig, value: string | number | boolean | File) => {
         onChange({ ...config, [key]: value });
@@ -135,7 +149,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ config, onChange, on
                     <label style={{ marginBottom: '0.75rem', display: 'block' }}>
                         {config.imageFile ? t('settings.watermarkImagePreview') : t('settings.uploadWatermarkImage')}
                     </label>
-                    {config.imageFile && (
+                    {config.imageFile && watermarkPreviewUrl && (
                         <div style={{
                             marginBottom: '0.75rem',
                             padding: '0.5rem',
@@ -147,7 +161,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ config, onChange, on
                             alignItems: 'center'
                         }}>
                             <img
-                                src={URL.createObjectURL(config.imageFile)}
+                                src={watermarkPreviewUrl}
                                 alt="Watermark preview"
                                 style={{
                                     maxWidth: '100%',
@@ -397,7 +411,14 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ config, onChange, on
             )}
 
             {batchProgress && (
-                <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                <div 
+                    role="progressbar"
+                    aria-valuenow={batchProgress.current}
+                    aria-valuemin={0}
+                    aria-valuemax={batchProgress.total}
+                    aria-label={`Processing ${batchProgress.current} of ${batchProgress.total} images`}
+                    style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+                >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                         <span style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>Processing...</span>
                         <span style={{ fontSize: '0.875rem', color: 'var(--accent-primary)', fontWeight: '600' }}>

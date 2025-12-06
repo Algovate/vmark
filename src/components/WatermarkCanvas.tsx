@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WatermarkConfig } from './ControlPanel';
 import { useDebounce } from '../hooks/useDebounce';
+import { drawWatermarkOnCanvas } from '../utils/watermarkUtils';
 
 interface WatermarkCanvasProps {
     imageFile: File | null;
@@ -21,7 +22,7 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
     const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
     
     // Debounce position updates for better performance
-    const debouncedPosition = useDebounce(position, 50);
+    const debouncedPosition = useDebounce(position, 100);
 
     // Load image when file changes
     useEffect(() => {
@@ -43,21 +44,22 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
             setIsLoading(false);
             // Reset position to center
             setPosition({ x: 50, y: 50 });
+            // Revoke object URL after image is loaded
+            URL.revokeObjectURL(objectUrl);
         };
 
         img.onerror = () => {
             setError('upload.error');
             setIsLoading(false);
             setImage(null);
+            // Revoke object URL on error
+            URL.revokeObjectURL(objectUrl);
         };
 
         // Cleanup function
         return () => {
-            // We are intentionally NOT revoking the Object URL here to avoid issues with React Strict Mode
-            // where the cleanup runs immediately before the image has loaded.
-            // This technically causes a small memory leak if the user uploads many images in one session,
-            // but the browser will clean them up when the page is closed.
-            // URL.revokeObjectURL(objectUrl);
+            // Revoke object URL if component unmounts before image loads
+            URL.revokeObjectURL(objectUrl);
         };
     }, [imageFile]);
 
@@ -74,14 +76,19 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
 
         img.onload = () => {
             setWatermarkImage(img);
+            // Revoke object URL after image is loaded
+            URL.revokeObjectURL(objectUrl);
         };
 
         img.onerror = () => {
             setWatermarkImage(null);
+            // Revoke object URL on error
+            URL.revokeObjectURL(objectUrl);
         };
 
         return () => {
-            // Cleanup handled by browser on page close
+            // Revoke object URL if component unmounts or config changes before image loads
+            URL.revokeObjectURL(objectUrl);
         };
     }, [config.type, config.imageFile]);
 
@@ -98,13 +105,11 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
 
         // Use requestAnimationFrame for smooth rendering
         const drawFrame = requestAnimationFrame(() => {
-            import('../utils/watermarkUtils').then(({ drawWatermarkOnCanvas }) => {
-                drawWatermarkOnCanvas(canvas, image, config, positionToUse, watermarkImage || undefined);
-                // Notify parent that canvas is updated (for download)
-                if (!isDragging) {
-                    onCanvasReady(canvas);
-                }
-            });
+            drawWatermarkOnCanvas(canvas, image, config, positionToUse, watermarkImage || undefined);
+            // Notify parent that canvas is updated (for download)
+            if (!isDragging) {
+                onCanvasReady(canvas);
+            }
         });
 
         return () => cancelAnimationFrame(drawFrame);
