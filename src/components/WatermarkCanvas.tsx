@@ -20,9 +20,16 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
     const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
     
     // Refs for drag state and optimization
-    const dragStateRef = useRef<{ isDragging: boolean; position: { x: number; y: number } | null }>({
+    const dragStateRef = useRef<{
+        isDragging: boolean;
+        position: { x: number; y: number } | null;
+        startMousePos: { x: number; y: number } | null;  // Initial mouse position when drag starts
+        startOffset: { x: number; y: number } | null;    // Initial watermark offset when drag starts
+    }>({
         isDragging: false,
         position: null,
+        startMousePos: null,
+        startOffset: null,
     });
     const canvasRectRef = useRef<DOMRect | null>(null);
     const animationFrameRef = useRef<number | null>(null);
@@ -203,12 +210,16 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
                 const spacingX = rotatedWidth + currentConfig.spacing;
                 const spacingY = rotatedHeight + currentConfig.spacing;
 
-                // Calculate starting position to cover the entire canvas
-                const startX = -spacingX;
-                const startY = -spacingY;
+                // Apply user-defined offset (from position, converted from percentage to pixels)
+                const offsetX = (canvas.width * positionToUse.x) / 100;
+                const offsetY = (canvas.height * positionToUse.y) / 100;
 
-                // Draw watermarks in a grid pattern
-                const maxWatermarks = 2000;
+                // Calculate starting position to cover the entire canvas, with offset
+                const startX = -spacingX + offsetX;
+                const startY = -spacingY + offsetY;
+
+                // Draw watermarks in a grid pattern (lower limit for better drag performance)
+                const maxWatermarks = 1000;
                 let watermarkCount = 0;
 
                 for (
@@ -282,12 +293,16 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
                 const spacingX = rotatedWidth + currentConfig.spacing;
                 const spacingY = rotatedHeight + currentConfig.spacing;
 
-                // Calculate starting position to cover the entire canvas
-                const startX = -spacingX;
-                const startY = -spacingY;
+                // Apply user-defined offset (from position, converted from percentage to pixels)
+                const offsetX = (canvas.width * positionToUse.x) / 100;
+                const offsetY = (canvas.height * positionToUse.y) / 100;
 
-                // Draw watermarks in a grid pattern
-                const maxWatermarks = 2000;
+                // Calculate starting position to cover the entire canvas, with offset
+                const startX = -spacingX + offsetX;
+                const startY = -spacingY + offsetY;
+
+                // Draw watermarks in a grid pattern (lower limit for better drag performance)
+                const maxWatermarks = 1000;
                 let watermarkCount = 0;
 
                 for (
@@ -354,11 +369,25 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
 
     // Global mouse move handler
     const handleGlobalMouseMove = useCallback((e: MouseEvent) => {
-        if (!dragStateRef.current.isDragging || !canvasRectRef.current || config.repeat) return;
+        if (!dragStateRef.current.isDragging || !canvasRectRef.current) return;
+
+        // Skip if a redraw is already pending (throttle for better performance in repeat mode)
+        if (needsRedrawRef.current) return;
+
+        const { startMousePos, startOffset } = dragStateRef.current;
+        if (!startMousePos || !startOffset) return;
 
         const rect = canvasRectRef.current;
-        const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-        const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+        const currentMouseX = ((e.clientX - rect.left) / rect.width) * 100;
+        const currentMouseY = ((e.clientY - rect.top) / rect.height) * 100;
+
+        // Calculate relative displacement
+        const deltaX = currentMouseX - startMousePos.x;
+        const deltaY = currentMouseY - startMousePos.y;
+
+        // Apply to initial offset and clamp to 0-100 range
+        const x = Math.max(0, Math.min(100, startOffset.x + deltaX));
+        const y = Math.max(0, Math.min(100, startOffset.y + deltaY));
 
         const newPosition = { x, y };
         // Update refs immediately (synchronous)
@@ -368,7 +397,7 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
         setDragPosition(newPosition);
         // Trigger redraw immediately
         needsRedrawRef.current = true;
-    }, [config.repeat]);
+    }, []);
 
     // Global mouse up handler
     const handleGlobalMouseUp = useCallback(() => {
@@ -380,6 +409,8 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
                 currentPositionRef.current = finalPosition;
                 dragStateRef.current.isDragging = false;
                 dragStateRef.current.position = null;
+                dragStateRef.current.startMousePos = null;
+                dragStateRef.current.startOffset = null;
                 
                 // Update React state (async, but doesn't affect rendering since we use refs)
                 setPosition(finalPosition);
@@ -392,6 +423,8 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
                 // No position to update, just end dragging
                 dragStateRef.current.isDragging = false;
                 dragStateRef.current.position = null;
+                dragStateRef.current.startMousePos = null;
+                dragStateRef.current.startOffset = null;
                 setIsDragging(false);
             }
         }
@@ -409,7 +442,6 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
 
     // Handle mouse down on canvas
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        if (config.repeat) return; // Don't allow dragging in repeat mode
         e.preventDefault();
         
         if (canvasRef.current) {
@@ -417,17 +449,19 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
             canvasRectRef.current = canvasRef.current.getBoundingClientRect();
             
             const rect = canvasRectRef.current;
-        const x = ((e.clientX - rect.left) / rect.width) * 100;
-        const y = ((e.clientY - rect.top) / rect.height) * 100;
+            const mouseX = ((e.clientX - rect.left) / rect.width) * 100;
+            const mouseY = ((e.clientY - rect.top) / rect.height) * 100;
 
-            const initialPosition = { x, y };
+            // Record initial state without changing current watermark position
             dragStateRef.current.isDragging = true;
-            dragStateRef.current.position = initialPosition;
-            // Update currentPositionRef immediately for rendering
-            currentPositionRef.current = initialPosition;
+            dragStateRef.current.startMousePos = { x: mouseX, y: mouseY };
+            dragStateRef.current.startOffset = { ...currentPositionRef.current };
+            dragStateRef.current.position = currentPositionRef.current;
+            
             setIsDragging(true);
-            setDragPosition(initialPosition);
-            needsRedrawRef.current = true;
+            setDragPosition(currentPositionRef.current);
+            
+            // No need to trigger redraw since position hasn't changed yet
 
             // Add global event listeners using refs to ensure we can remove them correctly
             handlersRef.current.handleGlobalMouseMove = handleGlobalMouseMove;
@@ -435,7 +469,7 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
             document.addEventListener('mousemove', handleGlobalMouseMove);
             document.addEventListener('mouseup', handleGlobalMouseUp);
         }
-    }, [config.repeat, handleGlobalMouseMove, handleGlobalMouseUp]);
+    }, [handleGlobalMouseMove, handleGlobalMouseUp]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -469,11 +503,11 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
                 <div style={{ position: 'relative', display: 'inline-block' }}>
                 <canvas
                     ref={canvasRef}
-                    onMouseDown={!config.repeat ? handleMouseDown : undefined}
+                    onMouseDown={handleMouseDown}
                     style={{
                         maxWidth: '100%',
                         maxHeight: '70vh',
-                        cursor: !config.repeat ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                        cursor: isDragging ? 'grabbing' : 'grab',
                             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                             transition: isDragging ? 'none' : 'transform 0.1s ease',
                     }}
@@ -481,7 +515,7 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
                     />
                     <DragIndicator
                         position={dragPosition || { x: 0, y: 0 }}
-                        visible={isDragging && dragPosition !== null && !config.repeat}
+                        visible={isDragging && dragPosition !== null}
                 />
                 </div>
             )}

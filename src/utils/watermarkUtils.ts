@@ -80,9 +80,13 @@ export const drawWatermarkOnCanvas = (
             const spacingX = rotatedWidth + config.spacing;
             const spacingY = rotatedHeight + config.spacing;
 
-            // Calculate starting position to cover the entire canvas
-            const startX = -spacingX;
-            const startY = -spacingY;
+            // Apply user-defined offset (from position, converted from percentage to pixels)
+            const offsetX = (canvas.width * position.x) / 100;
+            const offsetY = (canvas.height * position.y) / 100;
+
+            // Calculate starting position to cover the entire canvas, with offset
+            const startX = -spacingX + offsetX;
+            const startY = -spacingY + offsetY;
 
             // Draw watermarks in a grid pattern
             const maxWatermarks = 2000;
@@ -158,10 +162,13 @@ export const drawWatermarkOnCanvas = (
             const spacingX = rotatedWidth + config.spacing;
             const spacingY = rotatedHeight + config.spacing;
 
-            // Calculate starting position to cover the entire canvas
-            // Start from negative offset to ensure full coverage
-            const startX = -spacingX;
-            const startY = -spacingY;
+            // Apply user-defined offset (from position, converted from percentage to pixels)
+            const offsetX = (canvas.width * position.x) / 100;
+            const offsetY = (canvas.height * position.y) / 100;
+
+            // Calculate starting position to cover the entire canvas, with offset
+            const startX = -spacingX + offsetX;
+            const startY = -spacingY + offsetY;
 
             // Draw watermarks in a grid pattern
             // Optimize: limit the number of watermarks for very large canvases
