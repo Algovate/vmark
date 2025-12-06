@@ -71,7 +71,6 @@ function App() {
     link.download = downloadName;
     link.href = canvasRef.current.toDataURL(mimeType, quality);
     link.click();
-    link.click();
   };
 
   const handleBatchDownload = async (options: ExportOptions) => {
@@ -134,6 +133,11 @@ function App() {
             mimeType,
             quality
           );
+        };
+        img.onerror = () => {
+          console.error(`Failed to load image: ${file.name}`);
+          URL.revokeObjectURL(img.src);
+          resolve();
         };
       });
     });
