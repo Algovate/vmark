@@ -38,6 +38,15 @@ export const ImageSidebar: React.FC<ImageSidebarProps> = ({
                     <div
                         key={`${file.name}-${index}`}
                         onClick={() => onSelect(index)}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Select image ${index + 1}: ${file.name}`}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                onSelect(index);
+                            }
+                        }}
                         style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -54,6 +63,16 @@ export const ImageSidebar: React.FC<ImageSidebarProps> = ({
                                     ? '1px solid var(--accent-primary)'
                                     : '1px solid transparent',
                             transition: 'all 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                            if (index !== selectedIndex) {
+                                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (index !== selectedIndex) {
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                            }
                         }}
                     >
                         <div
@@ -94,6 +113,7 @@ export const ImageSidebar: React.FC<ImageSidebarProps> = ({
                                 e.stopPropagation();
                                 onRemove(index);
                             }}
+                            aria-label={`${t('sidebar.remove')} ${file.name}`}
                             style={{
                                 background: 'none',
                                 border: 'none',
@@ -104,6 +124,17 @@ export const ImageSidebar: React.FC<ImageSidebarProps> = ({
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
+                                transition: 'all 0.2s ease',
+                                width: '24px',
+                                height: '24px',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                                e.currentTarget.style.color = '#ef4444';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'none';
+                                e.currentTarget.style.color = 'var(--text-secondary)';
                             }}
                             title={t('sidebar.remove')}
                         >

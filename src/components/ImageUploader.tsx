@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface ImageUploaderProps {
@@ -30,22 +30,54 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload }) =
     }
   };
 
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDropWithState = (e: React.DragEvent<HTMLDivElement>) => {
+    setIsDragging(false);
+    handleDrop(e);
+  };
+
   return (
     <div
       className="glass-panel"
-      onDrop={handleDrop}
+      onDrop={handleDropWithState}
       onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
       style={{
         padding: '3rem',
         textAlign: 'center',
-        border: '2px dashed var(--border-color)',
+        border: `2px dashed ${isDragging ? 'var(--accent-primary)' : 'var(--border-color)'}`,
         cursor: 'pointer',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '300px',
-        transition: 'all 0.2s ease'
+        transition: 'all 0.2s ease',
+        background: isDragging ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-glass)',
+        transform: isDragging ? 'scale(1.02)' : 'scale(1)',
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={t('upload.dragDrop')}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          document.getElementById('file-upload')?.click();
+        }
       }}
     >
       <input
@@ -68,9 +100,11 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload }) =
           justifyContent: 'center'
         }}
       >
-        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📂</div>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem', transition: 'transform 0.2s ease' }}>
+          {isDragging ? '📥' : '📂'}
+        </div>
         <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-          {t('upload.dragDrop')}
+          {isDragging ? t('upload.dragDrop') || 'Drop files here' : t('upload.dragDrop')}
         </h3>
         <p style={{ color: 'var(--text-secondary)' }}>
           {t('upload.supports')}
