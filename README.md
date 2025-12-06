@@ -1,77 +1,100 @@
 # Vmark (微印)
 
-Professional client-side image watermarking tool. Secure, fast, and easy to use.
+专业的客户端图片水印工具。安全、快速、易用。
 
-## Features
+## 核心特色
 
-- **Client-Side Processing**: All processing happens in your browser. Your images are never uploaded to a server, ensuring maximum privacy and security.
-- **Real-Time Preview**: See changes instantly as you adjust watermark settings.
-- **Customizable Text Watermarks**:
-  - Adjust font size, color, and opacity.
-  - Rotate text to any angle.
-  - Set custom spacing and margins.
-- **Pattern Support**: Choose between single watermark or repeating pattern (tiled) layout.
-- **Multi-line Support**: Add multiple lines of text to your watermark.
-- **High-Quality Export**: Export your watermarked images in PNG or JPG formats.
-- **Internationalization**: Fully localized interface (English/Chinese).
-- **Dark/Light Mode**: seamless UI adaptation.
+### 🔒 完全本地处理
 
-## Tech Stack
+所有操作在浏览器内完成，图片不会上传到服务器，保护您的隐私和数据安全。
 
-- **Framework**: [React](https://react.dev/)
-- **Build Tool**: [Vite](https://vitejs.dev/)
-- **Language**: [TypeScript](https://www.typescriptlang.org/)
-- **Styling**: CSS / TailwindCSS
-- **I18n**: [i18next](https://www.i18next.com/)
+### ⚡ 实时预览
 
-## Getting Started
+调整水印参数时，效果即时显示，所见即所得。
 
-### Prerequisites
+### 🎨 灵活的水印定制
 
-- Node.js (v18 or higher recommended)
-- npm or yarn
+- **文字水印**：自定义字体大小、颜色、透明度
+- **图片水印**：支持上传自定义图片作为水印
+- **任意旋转**：0-360° 自由旋转角度
+- **精确定位**：鼠标拖拽调整位置，支持像素级精确控制
+- **重复模式**：支持单水印或网格重复铺满整图
+- **间距控制**：重复模式下可调整水印间距（50-500px）
 
-### Installation
+### 📦 批量处理
 
-1. Clone the repository:
+支持一次上传多张图片，批量添加水印，提高工作效率。
+
+### 🎯 高质量导出
+
+支持 PNG、JPEG、WebP 格式，可自定义 JPEG/WebP 质量。
+
+### 🌐 多语言支持
+
+完整的中英文界面，无缝切换。
+
+### 🎭 深色/浅色主题
+
+自动适配系统主题，提供舒适的视觉体验。
+
+## 技术栈
+
+- **框架**: [React](https://react.dev/)
+- **构建工具**: [Vite](https://vitejs.dev/)
+- **语言**: [TypeScript](https://www.typescriptlang.org/)
+- **样式**: CSS / TailwindCSS
+- **国际化**: [i18next](https://www.i18next.com/)
+
+## 快速开始
+
+### 环境要求
+
+- Node.js (v18 或更高版本)
+- npm 或 yarn
+
+### 安装
+
+1. 克隆仓库：
+
    ```bash
    git clone https://github.com/Algovate/vmark.git
    cd vmark
    ```
 
-2. Install dependencies:
+2. 安装依赖：
+
    ```bash
    npm install
    ```
 
-### Development
+### 开发
 
-Start the development server:
+启动开发服务器：
 
 ```bash
 npm run dev
 ```
 
-### Build
+### 构建
 
-Build for production:
+构建生产版本：
 
 ```bash
 npm run build
 ```
 
-## Deployment
+## 部署
 
-This project is configured for deployment to GitHub Pages.
+项目已配置 GitHub Pages 部署。
 
-To deploy the latest version:
+部署最新版本：
 
 ```bash
 npm run deploy
 ```
 
-The live site will be available at: `https://Algovate.github.io/vmark/`
+访问地址：`https://Algovate.github.io/vmark/`
 
-## License
+## 许可证
 
 MIT
