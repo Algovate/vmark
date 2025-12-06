@@ -2,7 +2,11 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WatermarkConfig } from './ControlPanel';
 import { useDebounce } from '../hooks/useDebounce';
+import { useImageLoader } from '../hooks/useImageLoader';
 import { drawWatermarkOnCanvas } from '../utils/watermarkUtils';
+import { LoadingSpinner } from './LoadingSpinner';
+import { ErrorDisplay } from './ErrorDisplay';
+import { DragIndicator } from './DragIndicator';
 
 interface WatermarkCanvasProps {
     imageFile: File | null;
@@ -13,84 +17,25 @@ interface WatermarkCanvasProps {
 export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, config, onCanvasReady }) => {
     const { t } = useTranslation();
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [image, setImage] = useState<HTMLImageElement | null>(null);
-    const [watermarkImage, setWatermarkImage] = useState<HTMLImageElement | null>(null);
     const [position, setPosition] = useState({ x: 50, y: 50 }); // Percentage 0-100
     const [isDragging, setIsDragging] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+    
+    // Use custom hook for image loading
+    const { image, isLoading, error } = useImageLoader(imageFile);
+    const { image: watermarkImage } = useImageLoader(
+        config.type === 'image' ? config.imageFile : null
+    );
     
     // Debounce position updates for better performance
     const debouncedPosition = useDebounce(position, 100);
 
-    // Load image when file changes
+    // Reset position when new image loads
     useEffect(() => {
-        if (!imageFile) {
-            setImage(null);
-            setError(null);
-            return;
-        }
-
-        setIsLoading(true);
-        setError(null);
-
-        const objectUrl = URL.createObjectURL(imageFile);
-        const img = new Image();
-        img.src = objectUrl;
-
-        img.onload = () => {
-            setImage(img);
-            setIsLoading(false);
-            // Reset position to center
+        if (image) {
             setPosition({ x: 50, y: 50 });
-            // Revoke object URL after image is loaded
-            URL.revokeObjectURL(objectUrl);
-        };
-
-        img.onerror = () => {
-            setError('upload.error');
-            setIsLoading(false);
-            setImage(null);
-            // Revoke object URL on error
-            URL.revokeObjectURL(objectUrl);
-        };
-
-        // Cleanup function
-        return () => {
-            // Revoke object URL if component unmounts before image loads
-            URL.revokeObjectURL(objectUrl);
-        };
-    }, [imageFile]);
-
-    // Load watermark image when config.imageFile changes
-    useEffect(() => {
-        if (config.type !== 'image' || !config.imageFile) {
-            setWatermarkImage(null);
-            return;
         }
-
-        const objectUrl = URL.createObjectURL(config.imageFile);
-        const img = new Image();
-        img.src = objectUrl;
-
-        img.onload = () => {
-            setWatermarkImage(img);
-            // Revoke object URL after image is loaded
-            URL.revokeObjectURL(objectUrl);
-        };
-
-        img.onerror = () => {
-            setWatermarkImage(null);
-            // Revoke object URL on error
-            URL.revokeObjectURL(objectUrl);
-        };
-
-        return () => {
-            // Revoke object URL if component unmounts or config changes before image loads
-            URL.revokeObjectURL(objectUrl);
-        };
-    }, [config.type, config.imageFile]);
+    }, [image]);
 
     // Draw canvas with debouncing for better performance
     useEffect(() => {
@@ -158,40 +103,13 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
     if (!imageFile) return null;
 
     return (
-        <div className="glass-panel" style={{ padding: '1rem', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+        <div className="glass-panel" style={{ padding: '1rem', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px', position: 'relative' }}>
             {isLoading && (
-                <div style={{
-                    position: 'absolute',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '1rem',
-                    color: 'var(--text-secondary)'
-                }}>
-                    <div style={{
-                        width: '40px',
-                        height: '40px',
-                        border: '3px solid var(--border-color)',
-                        borderTopColor: 'var(--accent-primary)',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite'
-                    }} />
-                    <span>{t('upload.loading')}</span>
+                <div style={{ position: 'absolute' }}>
+                    <LoadingSpinner message={t('upload.loading')} />
                 </div>
             )}
-            {error && (
-                <div style={{
-                    padding: '2rem',
-                    textAlign: 'center',
-                    color: '#ef4444',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '1rem'
-                }}>
-                    <div style={{ fontSize: '2rem' }}>⚠️</div>
-                    <div>{t(error)}</div>
-                </div>
-            )}
+            {error && <ErrorDisplay error={error} />}
             {!isLoading && !error && image && (
                 <div style={{ position: 'relative', display: 'inline-block' }}>
                     <canvas
@@ -209,24 +127,10 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
                         }}
                         aria-label="Watermarked image canvas"
                     />
-                    {isDragging && dragPosition && !config.repeat && (
-                        <div
-                            style={{
-                                position: 'absolute',
-                                left: `${dragPosition.x}%`,
-                                top: `${dragPosition.y}%`,
-                                transform: 'translate(-50%, -50%)',
-                                width: '12px',
-                                height: '12px',
-                                borderRadius: '50%',
-                                border: '2px solid var(--accent-primary)',
-                                background: 'rgba(59, 130, 246, 0.3)',
-                                pointerEvents: 'none',
-                                boxShadow: '0 0 8px rgba(59, 130, 246, 0.6)',
-                                animation: 'pulse 1.5s ease-in-out infinite',
-                            }}
-                        />
-                    )}
+                    <DragIndicator
+                        position={dragPosition || { x: 0, y: 0 }}
+                        visible={isDragging && dragPosition !== null && !config.repeat}
+                    />
                 </div>
             )}
         </div>

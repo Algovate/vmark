@@ -12,7 +12,8 @@
         "error": "Failed to load image. Please try another file.",
         "success": "Image uploaded successfully",
         "successMultiple": "{{count}} images uploaded successfully",
-        "added": "{{count}} image(s) added"
+        "added": "{{count}} image(s) added",
+        "retry": "Retry"
     },
     "settings": {
         "title": "Settings",

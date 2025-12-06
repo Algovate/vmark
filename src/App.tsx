@@ -1,46 +1,39 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ImageUploader } from './components/ImageUploader';
 import { ControlPanel } from './components/ControlPanel';
 import type { WatermarkConfig, ExportOptions } from './components/ControlPanel';
 import { ImageSidebar } from './components/ImageSidebar';
 import { WatermarkCanvas } from './components/WatermarkCanvas';
+import { HeaderButton } from './components/HeaderButton';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { drawWatermarkOnCanvas } from './utils/watermarkUtils';
 import { HelpModal } from './components/HelpModal';
 import { useToast, ToastContainer } from './components/Toast';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { filterValidImageFiles, generateWatermarkedFilename } from './utils/fileUtils';
+import { downloadCanvas } from './utils/exportUtils';
+import { triggerFileInput } from './utils/fileInputUtils';
+import { DEFAULT_WATERMARK_CONFIG, DEFAULT_EXPORT_OPTIONS } from './constants/defaultConfig';
+import { useImageProcessor } from './hooks/useImageProcessor';
 
 function App() {
   const { t, i18n } = useTranslation();
   const toast = useToast();
+  const { processImage } = useImageProcessor();
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
-  const [config, setConfig] = useState<WatermarkConfig>({
-    type: 'text',
-    text: 'Watermark',
-    color: '#ffffff',
-    fontSize: 48,
-    opacity: 0.8,
-    rotation: 0,
-    repeat: false,
-    spacing: 200,
-    imageSize: 100
-  });
+  const [config, setConfig] = useState<WatermarkConfig>(DEFAULT_WATERMARK_CONFIG);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [exportOptions, setExportOptions] = useState<ExportOptions>({
-    format: 'png',
-    quality: 0.92
-  });
+  const [exportOptions, setExportOptions] = useState<ExportOptions>(DEFAULT_EXPORT_OPTIONS);
 
-  const toggleLanguage = () => {
+  const toggleLanguage = useCallback(() => {
     const newLang = i18n.language === 'zh' ? 'en' : 'zh';
     i18n.changeLanguage(newLang);
-  };
+  }, [i18n]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts([
@@ -63,7 +56,7 @@ function App() {
     },
   ]);
 
-  const handleDownload = (options: ExportOptions) => {
+  const handleDownload = useCallback((options: ExportOptions) => {
     if (!canvasRef.current || imageFiles.length === 0) {
       toast.error(t('upload.error') || 'No image to download');
       return;
@@ -71,40 +64,14 @@ function App() {
 
     try {
       const currentFile = imageFiles[selectedImageIndex];
-
-      // Generate filename based on original file name
-      const originalName = currentFile.name;
-      const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-      const extension = options.format;
-      const downloadName = `${nameWithoutExt}-watermarked.${extension}`;
-
-      // Determine MIME type and quality
-      let mimeType: string;
-      let quality: number | undefined;
-
-      switch (options.format) {
-        case 'jpeg':
-          mimeType = 'image/jpeg';
-          quality = options.quality;
-          break;
-        case 'webp':
-          mimeType = 'image/webp';
-          quality = options.quality;
-          break;
-        default:
-          mimeType = 'image/png';
-          quality = undefined;
-      }
-
-      const link = document.createElement('a');
-      link.download = downloadName;
-      link.href = canvasRef.current.toDataURL(mimeType, quality);
-      link.click();
+      const downloadName = generateWatermarkedFilename(currentFile.name, options.format);
+      
+      downloadCanvas(canvasRef.current, downloadName, options);
       toast.success(t('settings.downloadSuccess') || 'Image downloaded successfully');
     } catch (error) {
       toast.error(t('upload.error') || 'Failed to download image');
     }
-  };
+  }, [canvasRef, imageFiles, selectedImageIndex, toast, t]);
 
   const handleBatchDownload = async (options: ExportOptions) => {
     if (imageFiles.length === 0) {
@@ -117,6 +84,9 @@ function App() {
     );
     setBatchProgress({ current: 0, total: imageFiles.length });
 
+    // Declare watermarkObjectUrl outside try block so it's accessible in catch
+    let watermarkObjectUrl: string | undefined;
+
     try {
       const zip = new JSZip();
       const folder = zip.folder('watermarked_images');
@@ -128,7 +98,6 @@ function App() {
 
       // Load watermark image if needed
       let watermarkImg: HTMLImageElement | undefined;
-      let watermarkObjectUrl: string | undefined;
       if (config.type === 'image' && config.imageFile) {
         watermarkObjectUrl = URL.createObjectURL(config.imageFile);
         watermarkImg = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -141,58 +110,14 @@ function App() {
 
       // Process each image with progress tracking
       let processedCount = 0;
-      const promises = imageFiles.map((file) => {
-        return new Promise<void>((resolve) => {
-          const img = new Image();
-          img.src = URL.createObjectURL(file);
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            drawWatermarkOnCanvas(canvas, img, config, undefined, watermarkImg);
-
-            // Determine MIME type and quality
-            let mimeType: string;
-            let quality: number | undefined;
-
-            switch (options.format) {
-              case 'jpeg':
-                mimeType = 'image/jpeg';
-                quality = options.quality;
-                break;
-              case 'webp':
-                mimeType = 'image/webp';
-                quality = options.quality;
-                break;
-              default:
-                mimeType = 'image/png';
-                quality = undefined;
-            }
-
-            canvas.toBlob(
-              (blob) => {
-                if (blob) {
-                  const originalName = file.name;
-                  const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-                  const extension = options.format;
-                  const filename = `${nameWithoutExt}-watermarked.${extension}`;
-                  folder.file(filename, blob);
-                }
-                URL.revokeObjectURL(img.src);
-                processedCount++;
-                setBatchProgress({ current: processedCount, total: imageFiles.length });
-                resolve();
-              },
-              mimeType,
-              quality
-            );
-          };
-          img.onerror = () => {
-            console.error(`Failed to load image: ${file.name}`);
-            URL.revokeObjectURL(img.src);
-            processedCount++;
-            setBatchProgress({ current: processedCount, total: imageFiles.length });
-            resolve();
-          };
-        });
+      const promises = imageFiles.map(async (file) => {
+        const blob = await processImage(file, config, options, watermarkImg);
+        if (blob) {
+          const filename = generateWatermarkedFilename(file.name, options.format);
+          folder.file(filename, blob);
+        }
+        processedCount++;
+        setBatchProgress({ current: processedCount, total: imageFiles.length });
       });
 
       await Promise.all(promises);
@@ -230,16 +155,26 @@ function App() {
     toast.info(t('sidebar.removed') || 'Image removed');
   };
 
-  const handleImageUpload = (files: File[]) => {
-    setImageFiles(files);
-    if (files.length > 0) {
-      toast.success(
-        files.length === 1
-          ? t('upload.success') || 'Image uploaded successfully'
-          : t('upload.successMultiple', { count: files.length }) || `${files.length} images uploaded successfully`
+  const handleImageUpload = useCallback((files: File[]) => {
+    const { valid, invalid } = filterValidImageFiles(files);
+
+    if (invalid.length > 0) {
+      toast.error(
+        invalid.length === 1
+          ? `"${invalid[0]}" is not a valid image file`
+          : `${invalid.length} files are not valid images`
       );
     }
-  };
+
+    if (valid.length > 0) {
+      setImageFiles(valid);
+      toast.success(
+        valid.length === 1
+          ? t('upload.success') || 'Image uploaded successfully'
+          : t('upload.successMultiple', { count: valid.length }) || `${valid.length} images uploaded successfully`
+      );
+    }
+  }, [toast, t]);
 
   return (
     <div style={{
@@ -250,65 +185,32 @@ function App() {
       gap: 'clamp(1rem, 2vw, 2rem)'
     }}>
       <header style={{ textAlign: 'center', marginBottom: '1rem', position: 'relative', padding: '0 1rem' }}>
-        <button
-          onClick={() => setIsHelpOpen(true)}
-          className="glass-panel"
-          aria-label={t('help.title')}
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            padding: '0.5rem 1rem',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            color: 'var(--text-secondary)',
-            border: '1px solid var(--border-color)',
-            background: 'rgba(0, 0, 0, 0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-            e.currentTarget.style.color = 'var(--text-primary)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.2)';
-            e.currentTarget.style.color = 'var(--text-secondary)';
-          }}
-        >
-          <span>?</span> <span className="help-text-mobile">{t('help.title')}</span>
-        </button>
-        <button
-          onClick={toggleLanguage}
-          className="glass-panel"
-          aria-label="Toggle language"
-          style={{
-            position: 'absolute',
-            right: 0,
-            top: 0,
-            padding: '0.5rem 1rem',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            color: 'var(--text-secondary)',
-            border: '1px solid var(--border-color)',
-            background: 'rgba(0, 0, 0, 0.2)',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-            e.currentTarget.style.color = 'var(--text-primary)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.2)';
-            e.currentTarget.style.color = 'var(--text-secondary)';
-          }}
-        >
-          {i18n.language === 'zh' ? 'English' : '中文'}
-        </button>
+        <div style={{ position: 'absolute', left: 0, top: 0 }}>
+          <HeaderButton
+            onClick={() => setIsHelpOpen(true)}
+            ariaLabel={t('help.title')}
+          >
+            <span>?</span> <span className="help-text-mobile">{t('help.title')}</span>
+          </HeaderButton>
+        </div>
+        <div style={{ position: 'absolute', right: 0, top: 0 }}>
+          <HeaderButton
+            onClick={toggleLanguage}
+            ariaLabel="Toggle language"
+          >
+            {i18n.language === 'zh' ? 'English' : '中文'}
+          </HeaderButton>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
-          <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="Vmark Logo" style={{ width: '3rem', height: '3rem' }} />
+          <img 
+            src={`${import.meta.env.BASE_URL}logo.svg`} 
+            alt="Vmark Logo" 
+            style={{ width: '3rem', height: '3rem' }}
+            onError={(e) => {
+              // Silently handle logo loading errors
+              e.currentTarget.style.display = 'none';
+            }}
+          />
           <h1 style={{
             fontSize: 'clamp(1.75rem, 5vw, 2.5rem)',
             fontWeight: '800',
@@ -366,19 +268,18 @@ function App() {
                 <button
                   className="btn-secondary"
                   onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.multiple = true;
-                    input.accept = 'image/*';
-                    input.onchange = (e) => {
-                      const files = (e.target as HTMLInputElement).files;
-                      if (files && files.length > 0) {
-                        const newFiles = [...imageFiles, ...Array.from(files)];
-                        setImageFiles(newFiles);
-                        toast.success(t('upload.added', { count: files.length }) || `${files.length} image(s) added`);
-                      }
-                    };
-                    input.click();
+                    triggerFileInput({
+                      multiple: true,
+                      accept: 'image/*',
+                      onSelect: (files) => {
+                        const { valid } = filterValidImageFiles(files);
+                        if (valid.length > 0) {
+                          const newFiles = [...imageFiles, ...valid];
+                          setImageFiles(newFiles);
+                          toast.success(t('upload.added', { count: valid.length }) || `${valid.length} image(s) added`);
+                        }
+                      },
+                    });
                   }}
                   style={{ marginTop: '1rem' }}
                 >

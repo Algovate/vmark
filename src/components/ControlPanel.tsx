@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ToggleButton } from './ToggleButton';
+import { SliderInput } from './SliderInput';
+import { triggerFileInput } from '../utils/fileInputUtils';
+import { isValidImageFile } from '../utils/fileUtils';
 
 export type WatermarkType = 'text' | 'image';
 
@@ -70,52 +74,22 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ config, onChange, on
             <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
                 <label style={{ marginBottom: '0.75rem', display: 'block' }}>{t('settings.watermarkType')}</label>
                 <div style={{ display: 'flex', gap: '0.5rem' }} role="radiogroup" aria-label={t('settings.watermarkType')}>
-                    <button
+                    <ToggleButton
+                        value="text"
+                        selected={config.type === 'text'}
                         onClick={() => handleChange('type', 'text')}
-                        role="radio"
-                        aria-checked={config.type === 'text'}
                         disabled={isProcessing}
-                        style={{
-                            flex: 1,
-                            padding: '0.5rem',
-                            border: `1px solid ${config.type === 'text' ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                            borderRadius: 'var(--radius-sm)',
-                            background: config.type === 'text'
-                                ? 'rgba(59, 130, 246, 0.2)'
-                                : 'rgba(0, 0, 0, 0.2)',
-                            color: 'var(--text-primary)',
-                            cursor: isProcessing ? 'not-allowed' : 'pointer',
-                            fontSize: '0.875rem',
-                            fontWeight: config.type === 'text' ? '600' : '400',
-                            transition: 'var(--transition-fast)',
-                            opacity: isProcessing ? 0.6 : 1,
-                        }}
                     >
                         {t('settings.textWatermark')}
-                    </button>
-                    <button
+                    </ToggleButton>
+                    <ToggleButton
+                        value="image"
+                        selected={config.type === 'image'}
                         onClick={() => handleChange('type', 'image')}
-                        role="radio"
-                        aria-checked={config.type === 'image'}
                         disabled={isProcessing}
-                        style={{
-                            flex: 1,
-                            padding: '0.5rem',
-                            border: `1px solid ${config.type === 'image' ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                            borderRadius: 'var(--radius-sm)',
-                            background: config.type === 'image'
-                                ? 'rgba(59, 130, 246, 0.2)'
-                                : 'rgba(0, 0, 0, 0.2)',
-                            color: 'var(--text-primary)',
-                            cursor: isProcessing ? 'not-allowed' : 'pointer',
-                            fontSize: '0.875rem',
-                            fontWeight: config.type === 'image' ? '600' : '400',
-                            transition: 'var(--transition-fast)',
-                            opacity: isProcessing ? 0.6 : 1,
-                        }}
                     >
                         {t('settings.imageWatermark')}
-                    </button>
+                    </ToggleButton>
                 </div>
             </div>
 
@@ -174,16 +148,16 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ config, onChange, on
                     <button
                         className="btn-secondary"
                         onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = 'image/*';
-                            input.onchange = (e) => {
-                                const file = (e.target as HTMLInputElement).files?.[0];
-                                if (file) {
-                                    handleChange('imageFile', file);
-                                }
-                            };
-                            input.click();
+                            triggerFileInput({
+                                multiple: false,
+                                accept: 'image/*',
+                                onSelect: (files) => {
+                                    const file = files[0];
+                                    if (file && isValidImageFile(file)) {
+                                        handleChange('imageFile', file);
+                                    }
+                                },
+                            });
                         }}
                         disabled={isProcessing}
                         aria-label={config.imageFile ? t('settings.changeWatermarkImage') : t('settings.uploadWatermarkImage')}
@@ -245,77 +219,54 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ config, onChange, on
             )}
 
             {config.type === 'text' && (
-            <div style={{ marginBottom: '1.5rem' }}>
-                <label htmlFor="font-size" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <span>{t('settings.fontSize')}</span>
-                    <span style={{ color: 'var(--accent-primary)', fontWeight: '600', fontSize: '0.875rem' }}>{config.fontSize}px</span>
-                </label>
-                <input
+                <SliderInput
                     id="font-size"
-                    type="range"
-                    min="12"
-                    max="200"
+                    label={t('settings.fontSize')}
                     value={config.fontSize}
-                    onChange={(e) => handleChange('fontSize', Number(e.target.value))}
+                    min={12}
+                    max={200}
+                    unit="px"
                     disabled={isProcessing}
-                    style={{ cursor: isProcessing ? 'not-allowed' : 'pointer' }}
+                    onChange={(value) => handleChange('fontSize', value)}
                 />
-            </div>
             )}
 
             {config.type === 'image' && (
-                <div style={{ marginBottom: '1.5rem' }}>
-                    <label htmlFor="image-size" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <span>{t('settings.imageSize')}</span>
-                        <span style={{ color: 'var(--accent-primary)', fontWeight: '600', fontSize: '0.875rem' }}>{config.imageSize}%</span>
-                    </label>
-                    <input
-                        id="image-size"
-                        type="range"
-                        min="10"
-                        max="200"
-                        value={config.imageSize}
-                        onChange={(e) => handleChange('imageSize', Number(e.target.value))}
-                        disabled={isProcessing}
-                        style={{ cursor: isProcessing ? 'not-allowed' : 'pointer' }}
-                    />
-                </div>
+                <SliderInput
+                    id="image-size"
+                    label={t('settings.imageSize')}
+                    value={config.imageSize}
+                    min={10}
+                    max={200}
+                    unit="%"
+                    disabled={isProcessing}
+                    onChange={(value) => handleChange('imageSize', value)}
+                />
             )}
 
-            <div style={{ marginBottom: '1.5rem' }}>
-                <label htmlFor="opacity" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <span>{t('settings.opacity')}</span>
-                    <span style={{ color: 'var(--accent-primary)', fontWeight: '600', fontSize: '0.875rem' }}>{Math.round(config.opacity * 100)}%</span>
-                </label>
-                <input
-                    id="opacity"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={config.opacity}
-                    onChange={(e) => handleChange('opacity', Number(e.target.value))}
-                    disabled={isProcessing}
-                    style={{ cursor: isProcessing ? 'not-allowed' : 'pointer' }}
-                />
-            </div>
+            <SliderInput
+                id="opacity"
+                label={t('settings.opacity')}
+                value={config.opacity}
+                min={0}
+                max={1}
+                step={0.01}
+                unit="%"
+                disabled={isProcessing}
+                onChange={(value) => handleChange('opacity', value)}
+                formatValue={(value) => `${Math.round(value * 100)}%`}
+            />
 
-            <div style={{ marginBottom: '1.5rem' }}>
-                <label htmlFor="rotation" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <span>{t('settings.rotation')}</span>
-                    <span style={{ color: 'var(--accent-primary)', fontWeight: '600', fontSize: '0.875rem' }}>{config.rotation}°</span>
-                </label>
-                <input
-                    id="rotation"
-                    type="range"
-                    min="0"
-                    max="360"
-                    value={config.rotation}
-                    onChange={(e) => handleChange('rotation', Number(e.target.value))}
-                    disabled={isProcessing}
-                    style={{ cursor: isProcessing ? 'not-allowed' : 'pointer' }}
-                />
-            </div>
+            <SliderInput
+                id="rotation"
+                label={t('settings.rotation')}
+                value={config.rotation}
+                min={0}
+                max={360}
+                unit="°"
+                disabled={isProcessing}
+                onChange={(value) => handleChange('rotation', value)}
+            />
 
             <div style={{ marginBottom: '1.5rem' }}>
                 <label htmlFor="repeat-checkbox" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: isProcessing ? 'not-allowed' : 'pointer' }}>
@@ -337,22 +288,16 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ config, onChange, on
             </div>
 
             {config.repeat && (
-                <div style={{ marginBottom: '2rem' }}>
-                    <label htmlFor="spacing" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <span>{t('settings.spacing')}</span>
-                        <span style={{ color: 'var(--accent-primary)', fontWeight: '600', fontSize: '0.875rem' }}>{config.spacing}px</span>
-                    </label>
-                    <input
-                        id="spacing"
-                        type="range"
-                        min="50"
-                        max="500"
-                        value={config.spacing}
-                        onChange={(e) => handleChange('spacing', Number(e.target.value))}
-                        disabled={isProcessing}
-                        style={{ cursor: isProcessing ? 'not-allowed' : 'pointer' }}
-                    />
-                </div>
+                <SliderInput
+                    id="spacing"
+                    label={t('settings.spacing')}
+                    value={config.spacing}
+                    min={50}
+                    max={500}
+                    unit="px"
+                    disabled={isProcessing}
+                    onChange={(value) => handleChange('spacing', value)}
+                />
             )}
 
             {!config.repeat && <div style={{ marginBottom: '1.5rem' }} />}
@@ -361,53 +306,32 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ config, onChange, on
                 <label style={{ marginBottom: '0.75rem', display: 'block' }}>{t('settings.exportFormat')}</label>
                 <div style={{ display: 'flex', gap: '0.5rem' }} role="radiogroup" aria-label={t('settings.exportFormat')}>
                     {(['png', 'jpeg', 'webp'] as const).map((format) => (
-                        <button
+                        <ToggleButton
                             key={format}
+                            value={format}
+                            selected={exportOptions.format === format}
                             onClick={() => handleExportFormatChange(format)}
-                            role="radio"
-                            aria-checked={exportOptions.format === format}
                             disabled={isProcessing}
-                            style={{
-                                flex: 1,
-                                padding: '0.5rem',
-                                border: `1px solid ${exportOptions.format === format ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                                borderRadius: 'var(--radius-sm)',
-                                background: exportOptions.format === format
-                                    ? 'rgba(59, 130, 246, 0.2)'
-                                    : 'rgba(0, 0, 0, 0.2)',
-                                color: 'var(--text-primary)',
-                                cursor: isProcessing ? 'not-allowed' : 'pointer',
-                                textTransform: 'uppercase',
-                                fontSize: '0.75rem',
-                                fontWeight: exportOptions.format === format ? '600' : '400',
-                                transition: 'var(--transition-fast)',
-                                opacity: isProcessing ? 0.6 : 1,
-                            }}
                         >
-                            {format}
-                        </button>
+                            {format.toUpperCase()}
+                        </ToggleButton>
                     ))}
                 </div>
             </div>
 
             {(exportOptions.format === 'jpeg' || exportOptions.format === 'webp') && (
-                <div style={{ marginBottom: '1.5rem' }}>
-                    <label htmlFor="quality" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <span>{t('settings.quality')}</span>
-                        <span style={{ color: 'var(--accent-primary)', fontWeight: '600', fontSize: '0.875rem' }}>{Math.round(exportOptions.quality * 100)}%</span>
-                    </label>
-                    <input
-                        id="quality"
-                        type="range"
-                        min="0.1"
-                        max="1"
-                        step="0.01"
-                        value={exportOptions.quality}
-                        onChange={(e) => handleExportQualityChange(Number(e.target.value))}
-                        disabled={isProcessing}
-                        style={{ cursor: isProcessing ? 'not-allowed' : 'pointer' }}
-                    />
-                </div>
+                <SliderInput
+                    id="quality"
+                    label={t('settings.quality')}
+                    value={exportOptions.quality}
+                    min={0.1}
+                    max={1}
+                    step={0.01}
+                    unit="%"
+                    disabled={isProcessing}
+                    onChange={(value) => handleExportQualityChange(value)}
+                    formatValue={(value) => `${Math.round(value * 100)}%`}
+                />
             )}
 
             {batchProgress && (

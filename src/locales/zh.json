@@ -12,7 +12,8 @@
         "error": "加载图片失败，请重试。",
         "success": "图片上传成功",
         "successMultiple": "成功上传 {{count}} 张图片",
-        "added": "已添加 {{count}} 张图片"
+        "added": "已添加 {{count}} 张图片",
+        "retry": "重试"
     },
     "settings": {
         "title": "设置",
