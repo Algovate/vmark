@@ -80,13 +80,19 @@ export const drawWatermarkOnCanvas = (
             const spacingX = rotatedWidth + config.spacing;
             const spacingY = rotatedHeight + config.spacing;
 
-            // Apply user-defined offset (from position, converted from percentage to pixels)
-            const offsetX = (canvas.width * position.x) / 100;
-            const offsetY = (canvas.height * position.y) / 100;
+            // In repeat mode, position acts as a phase adjustment (0-100% of spacing)
+            // This allows users to fine-tune the grid alignment
+            const offsetX = (spacingX * position.x) / 100;
+            const offsetY = (spacingY * position.y) / 100;
 
-            // Calculate starting position to cover the entire canvas, with offset
-            const startX = -spacingX + offsetX;
-            const startY = -spacingY + offsetY;
+            // Always start from outside the canvas to ensure full coverage
+            // Use modulo to normalize the offset within one spacing interval
+            const normalizedOffsetX = offsetX % spacingX;
+            const normalizedOffsetY = offsetY % spacingY;
+
+            // Calculate starting position to cover the entire canvas
+            const startX = -spacingX + normalizedOffsetX;
+            const startY = -spacingY + normalizedOffsetY;
 
             // Draw watermarks in a grid pattern
             const maxWatermarks = 2000;
@@ -162,13 +168,19 @@ export const drawWatermarkOnCanvas = (
             const spacingX = rotatedWidth + config.spacing;
             const spacingY = rotatedHeight + config.spacing;
 
-            // Apply user-defined offset (from position, converted from percentage to pixels)
-            const offsetX = (canvas.width * position.x) / 100;
-            const offsetY = (canvas.height * position.y) / 100;
+            // In repeat mode, position acts as a phase adjustment (0-100% of spacing)
+            // This allows users to fine-tune the grid alignment
+            const offsetX = (spacingX * position.x) / 100;
+            const offsetY = (spacingY * position.y) / 100;
 
-            // Calculate starting position to cover the entire canvas, with offset
-            const startX = -spacingX + offsetX;
-            const startY = -spacingY + offsetY;
+            // Always start from outside the canvas to ensure full coverage
+            // Use modulo to normalize the offset within one spacing interval
+            const normalizedOffsetX = offsetX % spacingX;
+            const normalizedOffsetY = offsetY % spacingY;
+
+            // Calculate starting position to cover the entire canvas
+            const startX = -spacingX + normalizedOffsetX;
+            const startY = -spacingY + normalizedOffsetY;
 
             // Draw watermarks in a grid pattern
             // Optimize: limit the number of watermarks for very large canvases

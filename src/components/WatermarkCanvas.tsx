@@ -68,6 +68,7 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
             prev.opacity !== config.opacity ||
             prev.rotation !== config.rotation ||
             prev.repeat !== config.repeat ||
+            prev.spacing !== config.spacing ||
             prev.imageFile !== config.imageFile ||
             prev.imageSize !== config.imageSize;
         
@@ -210,13 +211,19 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
                 const spacingX = rotatedWidth + currentConfig.spacing;
                 const spacingY = rotatedHeight + currentConfig.spacing;
 
-                // Apply user-defined offset (from position, converted from percentage to pixels)
-                const offsetX = (canvas.width * positionToUse.x) / 100;
-                const offsetY = (canvas.height * positionToUse.y) / 100;
+                // In repeat mode, position acts as a phase adjustment (0-100% of spacing)
+                // This allows users to fine-tune the grid alignment
+                const offsetX = (spacingX * positionToUse.x) / 100;
+                const offsetY = (spacingY * positionToUse.y) / 100;
 
-                // Calculate starting position to cover the entire canvas, with offset
-                const startX = -spacingX + offsetX;
-                const startY = -spacingY + offsetY;
+                // Always start from outside the canvas to ensure full coverage
+                // Use modulo to normalize the offset within one spacing interval
+                const normalizedOffsetX = offsetX % spacingX;
+                const normalizedOffsetY = offsetY % spacingY;
+
+                // Calculate starting position to cover the entire canvas
+                const startX = -spacingX + normalizedOffsetX;
+                const startY = -spacingY + normalizedOffsetY;
 
                 // Draw watermarks in a grid pattern (lower limit for better drag performance)
                 const maxWatermarks = 1000;
@@ -293,13 +300,19 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
                 const spacingX = rotatedWidth + currentConfig.spacing;
                 const spacingY = rotatedHeight + currentConfig.spacing;
 
-                // Apply user-defined offset (from position, converted from percentage to pixels)
-                const offsetX = (canvas.width * positionToUse.x) / 100;
-                const offsetY = (canvas.height * positionToUse.y) / 100;
+                // In repeat mode, position acts as a phase adjustment (0-100% of spacing)
+                // This allows users to fine-tune the grid alignment
+                const offsetX = (spacingX * positionToUse.x) / 100;
+                const offsetY = (spacingY * positionToUse.y) / 100;
 
-                // Calculate starting position to cover the entire canvas, with offset
-                const startX = -spacingX + offsetX;
-                const startY = -spacingY + offsetY;
+                // Always start from outside the canvas to ensure full coverage
+                // Use modulo to normalize the offset within one spacing interval
+                const normalizedOffsetX = offsetX % spacingX;
+                const normalizedOffsetY = offsetY % spacingY;
+
+                // Calculate starting position to cover the entire canvas
+                const startX = -spacingX + normalizedOffsetX;
+                const startY = -spacingY + normalizedOffsetY;
 
                 // Draw watermarks in a grid pattern (lower limit for better drag performance)
                 const maxWatermarks = 1000;
@@ -381,9 +394,21 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
         const currentMouseX = ((e.clientX - rect.left) / rect.width) * 100;
         const currentMouseY = ((e.clientY - rect.top) / rect.height) * 100;
 
-        // Calculate relative displacement
-        const deltaX = currentMouseX - startMousePos.x;
-        const deltaY = currentMouseY - startMousePos.y;
+        // Calculate relative displacement in canvas percent
+        let deltaX = currentMouseX - startMousePos.x;
+        let deltaY = currentMouseY - startMousePos.y;
+
+        // In repeat mode, convert canvas percent to spacing percent
+        // to maintain 1:1 pixel movement between mouse and watermark
+        const currentConfig = configRef.current;
+        if (currentConfig.repeat && canvasRef.current) {
+        const canvas = canvasRef.current;
+            const baseSpacing = currentConfig.spacing || 200; // fallback
+            
+            // Scale delta by (canvas_size / spacing) ratio
+            deltaX = deltaX * (canvas.width / baseSpacing);
+            deltaY = deltaY * (canvas.height / baseSpacing);
+        }
 
         // Apply to initial offset and clamp to 0-100 range
         const x = Math.max(0, Math.min(100, startOffset.x + deltaX));
