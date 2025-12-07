@@ -60,5 +60,8 @@
             "item2": "Adjust opacity to make the watermark subtle yet visible.",
             "item3": "Your images are processed locally in your browser for maximum privacy."
         }
+    },
+    "footer": {
+        "copyright": "© 2025 Algovate. All rights reserved."
     }
 }

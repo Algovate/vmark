@@ -98,3 +98,7 @@ npm run deploy
 ## 许可证
 
 MIT
+
+## 版权
+
+© 2025 [Algovate](https://github.com/Algovate). All rights reserved.

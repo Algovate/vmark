@@ -303,6 +303,15 @@ function App() {
           </div>
         )}
       </main>
+      <footer style={{
+        textAlign: 'center',
+        padding: '1.5rem 1rem',
+        color: 'var(--text-secondary)',
+        fontSize: '0.875rem',
+        marginTop: 'auto'
+      }}>
+        {t('footer.copyright')}
+      </footer>
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
     </div>
