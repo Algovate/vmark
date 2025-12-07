@@ -5,6 +5,7 @@ import { useImageLoader } from '../hooks/useImageLoader';
 import { LoadingSpinner } from './LoadingSpinner';
 import { ErrorDisplay } from './ErrorDisplay';
 import { DragIndicator } from './DragIndicator';
+import { renderWatermarks } from '../utils/watermarkUtils';
 
 interface WatermarkCanvasProps {
     imageFile: File | null;
@@ -18,7 +19,7 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
     const [position, setPosition] = useState({ x: 50, y: 50 }); // Percentage 0-100
     const [isDragging, setIsDragging] = useState(false);
     const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
-    
+
     // Refs for drag state and optimization
     const dragStateRef = useRef<{
         isDragging: boolean;
@@ -47,20 +48,20 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
     const imageRef = useRef<HTMLImageElement | null>(null);
     const watermarkImageRef = useRef<HTMLImageElement | null>(null);
     const onCanvasReadyRef = useRef(onCanvasReady);
-    
+
     // Use custom hook for image loading
     const { image, isLoading, error } = useImageLoader(imageFile);
     const { image: watermarkImage } = useImageLoader(
         config.type === 'image' ? config.imageFile : null
     );
-    
+
     // Store previous config for deep comparison
     const prevConfigRef = useRef<WatermarkConfig>(config);
-    
+
     // Update refs when values change and trigger redraw (with deep comparison)
     useEffect(() => {
         const prev = prevConfigRef.current;
-        const needsUpdate = 
+        const needsUpdate =
             prev.type !== config.type ||
             prev.text !== config.text ||
             prev.color !== config.color ||
@@ -71,7 +72,7 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
             prev.spacing !== config.spacing ||
             prev.imageFile !== config.imageFile ||
             prev.imageSize !== config.imageSize;
-        
+
         if (needsUpdate) {
             configRef.current = config;
             prevConfigRef.current = config;
@@ -81,19 +82,19 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
             prevConfigRef.current = config;
         }
     }, [config]);
-    
+
     useEffect(() => {
         imageRef.current = image || null;
     }, [image]);
-    
+
     useEffect(() => {
         watermarkImageRef.current = watermarkImage || null;
     }, [watermarkImage]);
-    
+
     useEffect(() => {
         onCanvasReadyRef.current = onCanvasReady;
     }, [onCanvasReady]);
-    
+
     // Reset position when new image loads
     useEffect(() => {
         if (image) {
@@ -111,7 +112,7 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
             const POSITION_EPSILON = 0.01;
             const xDiff = Math.abs(currentPositionRef.current.x - position.x);
             const yDiff = Math.abs(currentPositionRef.current.y - position.y);
-            
+
             if (xDiff > POSITION_EPSILON || yDiff > POSITION_EPSILON) {
                 currentPositionRef.current = position;
                 needsRedrawRef.current = true;
@@ -142,7 +143,7 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
         const currentImage = imageRef.current;
         const currentConfig = configRef.current;
         const currentWatermarkImage = watermarkImageRef.current;
-        
+
         if (!canvas || !currentImage) return;
 
         // For image watermarks, wait until watermark image is loaded
@@ -171,175 +172,16 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
         // Use current position from ref (always up-to-date, no dependency on state)
         const positionToUse = currentPositionRef.current;
 
-        // Draw watermark only
-        if (currentConfig.type === 'image' && currentWatermarkImage) {
-            // Image watermark
-            const baseSize = Math.min(canvas.width, canvas.height);
-            const scaleFactor = (currentConfig.imageSize / 100) * (baseSize / 500);
-            const watermarkWidth = currentWatermarkImage.width * scaleFactor;
-            const watermarkHeight = currentWatermarkImage.height * scaleFactor;
+        // Draw watermarks using shared utility function
+        renderWatermarks(
+            ctx,
+            currentConfig,
+            canvas.width,
+            canvas.height,
+            positionToUse,
+            currentWatermarkImage || undefined
+        );
 
-            // Function to draw a single image watermark at a given position
-            const drawSingleImageWatermark = (x: number, y: number) => {
-                ctx.save();
-                ctx.translate(x, y);
-                ctx.rotate((currentConfig.rotation * Math.PI) / 180);
-                ctx.globalAlpha = currentConfig.opacity;
-
-                ctx.drawImage(
-                    currentWatermarkImage,
-                    -watermarkWidth / 2,
-                    -watermarkHeight / 2,
-                    watermarkWidth,
-                    watermarkHeight
-                );
-                ctx.restore();
-            };
-
-            if (currentConfig.repeat) {
-                // Repeat mode: draw watermarks in a grid pattern
-                // Calculate spacing considering rotation
-                const rotationRad = (currentConfig.rotation * Math.PI) / 180;
-                const cos = Math.abs(Math.cos(rotationRad));
-                const sin = Math.abs(Math.sin(rotationRad));
-
-                // Bounding box dimensions after rotation
-                const rotatedWidth = watermarkWidth * cos + watermarkHeight * sin;
-                const rotatedHeight = watermarkWidth * sin + watermarkHeight * cos;
-
-                // Spacing between watermarks
-                const spacingX = rotatedWidth + currentConfig.spacing;
-                const spacingY = rotatedHeight + currentConfig.spacing;
-
-                // In repeat mode, position acts as a phase adjustment (0-100% of spacing)
-                // This allows users to fine-tune the grid alignment
-                const offsetX = (spacingX * positionToUse.x) / 100;
-                const offsetY = (spacingY * positionToUse.y) / 100;
-
-                // Always start from outside the canvas to ensure full coverage
-                // Use modulo to normalize the offset within one spacing interval
-                const normalizedOffsetX = offsetX % spacingX;
-                const normalizedOffsetY = offsetY % spacingY;
-
-                // Calculate starting position to cover the entire canvas
-                const startX = -spacingX + normalizedOffsetX;
-                const startY = -spacingY + normalizedOffsetY;
-
-                // Draw watermarks in a grid pattern (lower limit for better drag performance)
-                const maxWatermarks = 1000;
-                let watermarkCount = 0;
-
-                for (
-                    let y = startY;
-                    y < canvas.height + spacingY && watermarkCount < maxWatermarks;
-                    y += spacingY
-                ) {
-                    for (
-                        let x = startX;
-                        x < canvas.width + spacingX && watermarkCount < maxWatermarks;
-                        x += spacingX
-                    ) {
-                        drawSingleImageWatermark(x, y);
-                        watermarkCount++;
-                    }
-                }
-            } else {
-                // Single mode: draw watermark at the specified position
-                const x = (canvas.width * positionToUse.x) / 100;
-                const y = (canvas.height * positionToUse.y) / 100;
-                drawSingleImageWatermark(x, y);
-            }
-        } else if (currentConfig.type === 'text') {
-            // Text watermark
-            const lines = currentConfig.text.split('\n');
-            const lineHeight = currentConfig.fontSize * 1.2;
-            const totalHeight = lines.length * lineHeight;
-
-            // Calculate text width for bounding box
-            ctx.font = `bold ${currentConfig.fontSize}px Inter, sans-serif`;
-            let maxWidth = 0;
-            lines.forEach((line) => {
-                const width = ctx.measureText(line).width;
-                if (width > maxWidth) {
-                    maxWidth = width;
-                }
-            });
-
-            // Function to draw a single text watermark at a given position
-            const drawSingleTextWatermark = (x: number, y: number) => {
-                ctx.save();
-                ctx.translate(x, y);
-                ctx.rotate((currentConfig.rotation * Math.PI) / 180);
-                ctx.globalAlpha = currentConfig.opacity;
-                ctx.font = `bold ${currentConfig.fontSize}px Inter, sans-serif`;
-                ctx.fillStyle = currentConfig.color;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-
-                const startY = -(totalHeight - lineHeight) / 2;
-
-                lines.forEach((line, index) => {
-                    ctx.fillText(line, 0, startY + index * lineHeight);
-                });
-
-                ctx.restore();
-            };
-
-            if (currentConfig.repeat) {
-                // Repeat mode: draw watermarks in a grid pattern
-                // Calculate spacing considering rotation
-                const rotationRad = (currentConfig.rotation * Math.PI) / 180;
-                const cos = Math.abs(Math.cos(rotationRad));
-                const sin = Math.abs(Math.sin(rotationRad));
-
-                // Bounding box dimensions after rotation
-                const rotatedWidth = maxWidth * cos + totalHeight * sin;
-                const rotatedHeight = maxWidth * sin + totalHeight * cos;
-
-                // Spacing between watermarks
-                const spacingX = rotatedWidth + currentConfig.spacing;
-                const spacingY = rotatedHeight + currentConfig.spacing;
-
-                // In repeat mode, position acts as a phase adjustment (0-100% of spacing)
-                // This allows users to fine-tune the grid alignment
-                const offsetX = (spacingX * positionToUse.x) / 100;
-                const offsetY = (spacingY * positionToUse.y) / 100;
-
-                // Always start from outside the canvas to ensure full coverage
-                // Use modulo to normalize the offset within one spacing interval
-                const normalizedOffsetX = offsetX % spacingX;
-                const normalizedOffsetY = offsetY % spacingY;
-
-                // Calculate starting position to cover the entire canvas
-                const startX = -spacingX + normalizedOffsetX;
-                const startY = -spacingY + normalizedOffsetY;
-
-                // Draw watermarks in a grid pattern (lower limit for better drag performance)
-                const maxWatermarks = 1000;
-                let watermarkCount = 0;
-
-                for (
-                    let y = startY;
-                    y < canvas.height + spacingY && watermarkCount < maxWatermarks;
-                    y += spacingY
-                ) {
-                    for (
-                        let x = startX;
-                        x < canvas.width + spacingX && watermarkCount < maxWatermarks;
-                        x += spacingX
-                    ) {
-                        drawSingleTextWatermark(x, y);
-                        watermarkCount++;
-                    }
-                }
-            } else {
-                // Single mode: draw watermark at the specified position
-                const x = (canvas.width * positionToUse.x) / 100;
-                const y = (canvas.height * positionToUse.y) / 100;
-                drawSingleTextWatermark(x, y);
-            }
-        }
-        
         // Notify parent that canvas is updated (for download) only when not dragging
         if (!dragStateRef.current.isDragging) {
             onCanvasReadyRef.current(canvas);
@@ -354,11 +196,11 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
 
         const animate = () => {
             if (!isRunning) return;
-            
+
             if (needsRedrawRef.current) {
                 redrawCanvas();
             }
-            
+
             animationFrameRef.current = requestAnimationFrame(animate);
         };
 
@@ -402,9 +244,9 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
         // to maintain 1:1 pixel movement between mouse and watermark
         const currentConfig = configRef.current;
         if (currentConfig.repeat && canvasRef.current) {
-        const canvas = canvasRef.current;
+            const canvas = canvasRef.current;
             const baseSpacing = currentConfig.spacing || 200; // fallback
-            
+
             // Scale delta by (canvas_size / spacing) ratio
             deltaX = deltaX * (canvas.width / baseSpacing);
             deltaY = deltaY * (canvas.height / baseSpacing);
@@ -429,19 +271,19 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
         if (dragStateRef.current.isDragging) {
             if (dragStateRef.current.position) {
                 const finalPosition = dragStateRef.current.position;
-                
+
                 // Immediately update all refs synchronously
                 currentPositionRef.current = finalPosition;
                 dragStateRef.current.isDragging = false;
                 dragStateRef.current.position = null;
                 dragStateRef.current.startMousePos = null;
                 dragStateRef.current.startOffset = null;
-                
+
                 // Update React state (async, but doesn't affect rendering since we use refs)
                 setPosition(finalPosition);
                 setDragPosition(null);
                 setIsDragging(false);
-                
+
                 // Trigger immediate redraw with final position
                 needsRedrawRef.current = true;
             } else {
@@ -468,11 +310,11 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
     // Handle mouse down on canvas
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
-        
+
         if (canvasRef.current) {
             // Cache canvas boundary information
             canvasRectRef.current = canvasRef.current.getBoundingClientRect();
-            
+
             const rect = canvasRectRef.current;
             const mouseX = ((e.clientX - rect.left) / rect.width) * 100;
             const mouseY = ((e.clientY - rect.top) / rect.height) * 100;
@@ -482,10 +324,10 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
             dragStateRef.current.startMousePos = { x: mouseX, y: mouseY };
             dragStateRef.current.startOffset = { ...currentPositionRef.current };
             dragStateRef.current.position = currentPositionRef.current;
-            
+
             setIsDragging(true);
             setDragPosition(currentPositionRef.current);
-            
+
             // No need to trigger redraw since position hasn't changed yet
 
             // Add global event listeners using refs to ensure we can remove them correctly
@@ -506,7 +348,7 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
             if (handlersRef.current.handleGlobalMouseUp) {
                 document.removeEventListener('mouseup', handlersRef.current.handleGlobalMouseUp);
             }
-            
+
             // Cancel animation frame
             if (animationFrameRef.current !== null) {
                 cancelAnimationFrame(animationFrameRef.current);
@@ -526,22 +368,22 @@ export const WatermarkCanvas: React.FC<WatermarkCanvasProps> = ({ imageFile, con
             {error && <ErrorDisplay error={error} />}
             {!isLoading && !error && image && (
                 <div style={{ position: 'relative', display: 'inline-block' }}>
-                <canvas
-                    ref={canvasRef}
-                    onMouseDown={handleMouseDown}
-                    style={{
-                        maxWidth: '100%',
-                        maxHeight: '70vh',
-                        cursor: isDragging ? 'grabbing' : 'grab',
+                    <canvas
+                        ref={canvasRef}
+                        onMouseDown={handleMouseDown}
+                        style={{
+                            maxWidth: '100%',
+                            maxHeight: '70vh',
+                            cursor: isDragging ? 'grabbing' : 'grab',
                             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                             transition: isDragging ? 'none' : 'transform 0.1s ease',
-                    }}
+                        }}
                         aria-label="Watermarked image canvas"
                     />
                     <DragIndicator
                         position={dragPosition || { x: 0, y: 0 }}
                         visible={isDragging && dragPosition !== null}
-                />
+                    />
                 </div>
             )}
         </div>

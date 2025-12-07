@@ -10,7 +10,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { HelpModal } from './components/HelpModal';
 import { DonationModal } from './components/DonationModal';
-import { useToast, ToastContainer } from './components/Toast';
+import { useToast } from './components/Toast';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { filterValidImageFiles, generateWatermarkedFilename } from './utils/fileUtils';
 import { downloadCanvas } from './utils/exportUtils';
@@ -70,7 +70,7 @@ function App() {
     try {
       const currentFile = imageFiles[selectedImageIndex];
       const downloadName = generateWatermarkedFilename(currentFile.name, options.format);
-      
+
       downloadCanvas(canvasRef.current, downloadName, options);
       toast.success(t('settings.downloadSuccess') || 'Image downloaded successfully');
     } catch (error) {
@@ -128,12 +128,12 @@ function App() {
       await Promise.all(promises);
       const content = await zip.generateAsync({ type: 'blob' });
       saveAs(content, 'watermarked_images.zip');
-      
+
       // Cleanup watermark object URL
       if (watermarkObjectUrl) {
         URL.revokeObjectURL(watermarkObjectUrl);
       }
-      
+
       toast.removeToast(loadingToastId);
       toast.success(
         t('settings.downloadAllSuccess', { count: imageFiles.length }) || `Successfully downloaded ${imageFiles.length} images`
@@ -213,9 +213,9 @@ function App() {
           </HeaderButton>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
-          <img 
-            src={`${import.meta.env.BASE_URL}logo.svg`} 
-            alt="Vmark Logo" 
+          <img
+            src={`${import.meta.env.BASE_URL}logo.svg`}
+            alt="Vmark Logo"
             style={{ width: '3rem', height: '3rem' }}
             onError={(e) => {
               // Silently handle logo loading errors
@@ -325,7 +325,6 @@ function App() {
       </footer>
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
       <DonationModal isOpen={isDonationOpen} onClose={() => setIsDonationOpen(false)} />
-      <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, createContext, useContext } from 'react';
 
 export type ToastType = 'success' | 'error' | 'info' | 'loading';
 
@@ -163,7 +163,7 @@ interface ToastContainerProps {
   onRemove: (id: string) => void;
 }
 
-export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove }) => {
+const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove }) => {
   if (toasts.length === 0) return null;
 
   return (
@@ -188,8 +188,8 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove
   );
 };
 
-// Toast manager hook
-export const useToast = () => {
+// Internal hook for managing state
+const useToastManager = () => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const showToast = useCallback((message: string, type: ToastType = 'info', duration?: number) => {
@@ -214,10 +214,49 @@ export const useToast = () => {
     showToast,
     removeToast,
     updateToast,
-    success: useCallback((message: string, duration?: number) => showToast(message, 'success', duration), [showToast]),
-    error: useCallback((message: string, duration?: number) => showToast(message, 'error', duration), [showToast]),
-    info: useCallback((message: string, duration?: number) => showToast(message, 'info', duration), [showToast]),
-    loading: useCallback((message: string) => showToast(message, 'loading'), [showToast]),
   };
+};
+
+type ToastContextType = Omit<ReturnType<typeof useToastManager>, 'toasts'> & {
+  success: (message: string, duration?: number) => string;
+  error: (message: string, duration?: number) => string;
+  info: (message: string, duration?: number) => string;
+  loading: (message: string) => string;
+};
+
+const ToastContext = createContext<ToastContextType | null>(null);
+
+export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { toasts, showToast, removeToast, updateToast } = useToastManager();
+
+  const success = useCallback((message: string, duration?: number) => showToast(message, 'success', duration), [showToast]);
+  const error = useCallback((message: string, duration?: number) => showToast(message, 'error', duration), [showToast]);
+  const info = useCallback((message: string, duration?: number) => showToast(message, 'info', duration), [showToast]);
+  const loading = useCallback((message: string) => showToast(message, 'loading'), [showToast]);
+
+  const value = {
+    showToast,
+    removeToast,
+    updateToast,
+    success,
+    error,
+    info,
+    loading
+  };
+
+  return (
+    <ToastContext.Provider value={value}>
+      {children}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+    </ToastContext.Provider>
+  );
+};
+
+export const useToast = () => {
+  const context = useContext(ToastContext);
+  if (!context) {
+    throw new Error('useToast must be used within a ToastProvider');
+  }
+  return context;
 };
 

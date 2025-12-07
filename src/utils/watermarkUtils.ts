@@ -5,15 +5,170 @@ export const calculateTextDimensions = (
     text: string,
     fontSize: number
 ) => {
+    ctx.save();
     ctx.font = `bold ${fontSize}px Inter, sans-serif`;
     const lines = text.split('\n');
     const lineHeight = fontSize * 1.2;
     const totalHeight = lines.length * lineHeight;
     const maxWidth = Math.max(...lines.map((line) => ctx.measureText(line).width));
+    ctx.restore();
 
     return { lines, lineHeight, totalHeight, maxWidth };
 };
 
+/**
+ * Calculates the dimensions of the watermark item (image or text)
+ * and its rotated bounding box dimensions.
+ */
+export const getWatermarkDimensions = (
+    ctx: CanvasRenderingContext2D,
+    config: WatermarkConfig,
+    canvasWidth: number,
+    canvasHeight: number,
+    watermarkImage?: HTMLImageElement
+) => {
+    let width = 0;
+    let height = 0;
+
+    if (config.type === 'image' && watermarkImage) {
+        const baseSize = Math.min(canvasWidth, canvasHeight);
+        const scaleFactor = (config.imageSize / 100) * (baseSize / 500);
+        width = watermarkImage.width * scaleFactor;
+        height = watermarkImage.height * scaleFactor;
+    } else if (config.type === 'text') {
+        const dims = calculateTextDimensions(ctx, config.text, config.fontSize);
+        width = dims.maxWidth;
+        height = dims.totalHeight;
+    }
+
+    // Calculate rotated dimensions
+    const rotationRad = (config.rotation * Math.PI) / 180;
+    const cos = Math.abs(Math.cos(rotationRad));
+    const sin = Math.abs(Math.sin(rotationRad));
+
+    const rotatedWidth = width * cos + height * sin;
+    const rotatedHeight = width * sin + height * cos;
+
+    return { width, height, rotatedWidth, rotatedHeight };
+};
+
+/**
+ * Draws a single watermark item at the specified position
+ */
+export const drawSingleWatermarkItem = (
+    ctx: CanvasRenderingContext2D,
+    config: WatermarkConfig,
+    x: number,
+    y: number,
+    dims: { width: number; height: number },
+    watermarkImage?: HTMLImageElement
+) => {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate((config.rotation * Math.PI) / 180);
+    ctx.globalAlpha = config.opacity;
+
+    if (config.type === 'image' && watermarkImage) {
+        ctx.drawImage(
+            watermarkImage,
+            -dims.width / 2,
+            -dims.height / 2,
+            dims.width,
+            dims.height
+        );
+    } else if (config.type === 'text') {
+        ctx.font = `bold ${config.fontSize}px Inter, sans-serif`;
+        ctx.fillStyle = config.color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // We re-calculate lines here, which is slight overhead but keeps API cleaner.
+        // Optimization: could pass lines/lineHeight if performance becomes an issue.
+        const { lines, lineHeight, totalHeight } = calculateTextDimensions(
+            ctx,
+            config.text,
+            config.fontSize
+        );
+        const startY = -(totalHeight - lineHeight) / 2;
+
+        lines.forEach((line, index) => {
+            ctx.fillText(line, 0, startY + index * lineHeight);
+        });
+    }
+
+    ctx.restore();
+};
+
+/**
+ * Orchestrates drawing watermarks (single or repeat) onto a context.
+ * WARNING: This function does NOT draw the background image. It only draws the watermarks.
+ * @param ctx Target canvas context
+ * @param config Watermark configuration
+ * @param canvasWidth Width of the canvas
+ * @param canvasHeight Height of the canvas
+ * @param position Position offset (0-100)
+ * @param watermarkImage Optional image for image watermarks
+ */
+export const renderWatermarks = (
+    ctx: CanvasRenderingContext2D,
+    config: WatermarkConfig,
+    canvasWidth: number,
+    canvasHeight: number,
+    position: { x: number; y: number } = { x: 50, y: 50 },
+    watermarkImage?: HTMLImageElement
+) => {
+    // Early exit conditions
+    if (config.type === 'image' && !watermarkImage) return;
+    if (config.type === 'text' && !config.text) return;
+
+    const dims = getWatermarkDimensions(ctx, config, canvasWidth, canvasHeight, watermarkImage);
+
+    if (config.repeat) {
+        // Spacing between watermarks
+        const spacingX = dims.rotatedWidth + config.spacing;
+        const spacingY = dims.rotatedHeight + config.spacing;
+
+        // In repeat mode, position acts as a phase adjustment (0-100% of spacing)
+        const offsetX = (spacingX * position.x) / 100;
+        const offsetY = (spacingY * position.y) / 100;
+
+        // Use modulo to normalize the offset within one spacing interval
+        const normalizedOffsetX = offsetX % spacingX;
+        const normalizedOffsetY = offsetY % spacingY;
+
+        // Start from outside to ensure coverage
+        const startX = -spacingX + normalizedOffsetX;
+        const startY = -spacingY + normalizedOffsetY;
+
+        const maxWatermarks = 2000;
+        let watermarkCount = 0;
+
+        for (
+            let y = startY;
+            y < canvasHeight + spacingY && watermarkCount < maxWatermarks;
+            y += spacingY
+        ) {
+            for (
+                let x = startX;
+                x < canvasWidth + spacingX && watermarkCount < maxWatermarks;
+                x += spacingX
+            ) {
+                drawSingleWatermarkItem(ctx, config, x, y, dims, watermarkImage);
+                watermarkCount++;
+            }
+        }
+    } else {
+        // Single mode
+        const x = (canvasWidth * position.x) / 100;
+        const y = (canvasHeight * position.y) / 100;
+        drawSingleWatermarkItem(ctx, config, x, y, dims, watermarkImage);
+    }
+};
+
+/**
+ * Main entry point for batch processing / export.
+ * Draws the background image AND the watermarks.
+ */
 export const drawWatermarkOnCanvas = (
     canvas: HTMLCanvasElement,
     image: HTMLImageElement,
@@ -31,181 +186,7 @@ export const drawWatermarkOnCanvas = (
     // Draw background image
     ctx.drawImage(image, 0, 0);
 
-    if (config.type === 'image') {
-        // Image watermark mode
-        if (!watermarkImage) return;
-
-        // Function to draw a single image watermark at a given position
-        const drawSingleImageWatermark = (x: number, y: number) => {
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate((config.rotation * Math.PI) / 180);
-            ctx.globalAlpha = config.opacity;
-
-            // Calculate watermark image dimensions based on imageSize percentage
-            const baseSize = Math.min(canvas.width, canvas.height);
-            const scaleFactor = (config.imageSize / 100) * (baseSize / 500); // Normalize to reasonable size
-            const watermarkWidth = watermarkImage.width * scaleFactor;
-            const watermarkHeight = watermarkImage.height * scaleFactor;
-
-            // Draw centered on the position
-            ctx.drawImage(
-                watermarkImage,
-                -watermarkWidth / 2,
-                -watermarkHeight / 2,
-                watermarkWidth,
-                watermarkHeight
-            );
-
-            ctx.restore();
-        };
-
-        if (config.repeat) {
-            // Repeat mode: draw watermarks in a grid pattern
-            const baseSize = Math.min(canvas.width, canvas.height);
-            const scaleFactor = (config.imageSize / 100) * (baseSize / 500);
-            const watermarkWidth = watermarkImage.width * scaleFactor;
-            const watermarkHeight = watermarkImage.height * scaleFactor;
-
-            // Calculate spacing considering rotation
-            const rotationRad = (config.rotation * Math.PI) / 180;
-            const cos = Math.abs(Math.cos(rotationRad));
-            const sin = Math.abs(Math.sin(rotationRad));
-
-            // Bounding box dimensions after rotation
-            const rotatedWidth = watermarkWidth * cos + watermarkHeight * sin;
-            const rotatedHeight = watermarkWidth * sin + watermarkHeight * cos;
-
-            // Spacing between watermarks
-            const spacingX = rotatedWidth + config.spacing;
-            const spacingY = rotatedHeight + config.spacing;
-
-            // In repeat mode, position acts as a phase adjustment (0-100% of spacing)
-            // This allows users to fine-tune the grid alignment
-            const offsetX = (spacingX * position.x) / 100;
-            const offsetY = (spacingY * position.y) / 100;
-
-            // Always start from outside the canvas to ensure full coverage
-            // Use modulo to normalize the offset within one spacing interval
-            const normalizedOffsetX = offsetX % spacingX;
-            const normalizedOffsetY = offsetY % spacingY;
-
-            // Calculate starting position to cover the entire canvas
-            const startX = -spacingX + normalizedOffsetX;
-            const startY = -spacingY + normalizedOffsetY;
-
-            // Draw watermarks in a grid pattern
-            const maxWatermarks = 2000;
-            let watermarkCount = 0;
-
-            for (
-                let y = startY;
-                y < canvas.height + spacingY && watermarkCount < maxWatermarks;
-                y += spacingY
-            ) {
-                for (
-                    let x = startX;
-                    x < canvas.width + spacingX && watermarkCount < maxWatermarks;
-                    x += spacingX
-                ) {
-                    drawSingleImageWatermark(x, y);
-                    watermarkCount++;
-                }
-            }
-        } else {
-            // Single mode: draw watermark at the specified position
-            const x = (canvas.width * position.x) / 100;
-            const y = (canvas.height * position.y) / 100;
-            drawSingleImageWatermark(x, y);
-        }
-    } else {
-        // Text watermark mode (existing logic)
-        // Function to draw a single watermark at a given position
-        const drawSingleWatermark = (x: number, y: number) => {
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate((config.rotation * Math.PI) / 180);
-            ctx.globalAlpha = config.opacity;
-            ctx.font = `bold ${config.fontSize}px Inter, sans-serif`;
-            ctx.fillStyle = config.color;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-
-            const { lines, lineHeight, totalHeight } = calculateTextDimensions(
-                ctx,
-                config.text,
-                config.fontSize
-            );
-
-            // Start drawing from the top-most line to center the block of text vertically
-            const startY = -(totalHeight - lineHeight) / 2;
-
-            lines.forEach((line, index) => {
-                ctx.fillText(line, 0, startY + index * lineHeight);
-            });
-
-            ctx.restore();
-        };
-
-        if (config.repeat) {
-            // Repeat mode: draw watermarks in a grid pattern
-            const { totalHeight, maxWidth } = calculateTextDimensions(
-                ctx,
-                config.text,
-                config.fontSize
-            );
-
-            // Calculate spacing considering rotation
-            const rotationRad = (config.rotation * Math.PI) / 180;
-            const cos = Math.abs(Math.cos(rotationRad));
-            const sin = Math.abs(Math.sin(rotationRad));
-
-            // Bounding box dimensions after rotation
-            const rotatedWidth = maxWidth * cos + totalHeight * sin;
-            const rotatedHeight = maxWidth * sin + totalHeight * cos;
-
-            // Spacing between watermarks
-            const spacingX = rotatedWidth + config.spacing;
-            const spacingY = rotatedHeight + config.spacing;
-
-            // In repeat mode, position acts as a phase adjustment (0-100% of spacing)
-            // This allows users to fine-tune the grid alignment
-            const offsetX = (spacingX * position.x) / 100;
-            const offsetY = (spacingY * position.y) / 100;
-
-            // Always start from outside the canvas to ensure full coverage
-            // Use modulo to normalize the offset within one spacing interval
-            const normalizedOffsetX = offsetX % spacingX;
-            const normalizedOffsetY = offsetY % spacingY;
-
-            // Calculate starting position to cover the entire canvas
-            const startX = -spacingX + normalizedOffsetX;
-            const startY = -spacingY + normalizedOffsetY;
-
-            // Draw watermarks in a grid pattern
-            // Optimize: limit the number of watermarks for very large canvases
-            const maxWatermarks = 2000; // Reasonable limit
-            let watermarkCount = 0;
-
-            for (
-                let y = startY;
-                y < canvas.height + spacingY && watermarkCount < maxWatermarks;
-                y += spacingY
-            ) {
-                for (
-                    let x = startX;
-                    x < canvas.width + spacingX && watermarkCount < maxWatermarks;
-                    x += spacingX
-                ) {
-                    drawSingleWatermark(x, y);
-                    watermarkCount++;
-                }
-            }
-        } else {
-            // Single mode: draw watermark at the specified position (draggable)
-            const x = (canvas.width * position.x) / 100;
-            const y = (canvas.height * position.y) / 100;
-            drawSingleWatermark(x, y);
-        }
-    }
+    // Draw watermarks
+    renderWatermarks(ctx, config, canvas.width, canvas.height, position, watermarkImage);
 };
+
