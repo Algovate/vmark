@@ -63,5 +63,13 @@
     },
     "footer": {
         "copyright": "© 2025 Algovate. All rights reserved."
+    },
+    "donation": {
+        "button": "Buy me a coffee",
+        "ariaLabel": "Donate",
+        "title": "Support This Project",
+        "scanQR": "Scan QR code to donate",
+        "openAlipay": "Open Alipay",
+        "close": "Close"
     }
 }

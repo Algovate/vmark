@@ -63,5 +63,13 @@
     },
     "footer": {
         "copyright": "© 2025 Algovate. 保留所有权利。"
+    },
+    "donation": {
+        "button": "请我喝杯咖啡",
+        "ariaLabel": "捐赠",
+        "title": "支持这个项目",
+        "scanQR": "扫码支付",
+        "openAlipay": "打开支付宝",
+        "close": "关闭"
     }
 }

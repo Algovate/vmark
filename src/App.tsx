@@ -9,6 +9,7 @@ import { HeaderButton } from './components/HeaderButton';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { HelpModal } from './components/HelpModal';
+import { DonationModal } from './components/DonationModal';
 import { useToast, ToastContainer } from './components/Toast';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { filterValidImageFiles, generateWatermarkedFilename } from './utils/fileUtils';
@@ -24,6 +25,7 @@ function App() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isDonationOpen, setIsDonationOpen] = useState(false);
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
   const [config, setConfig] = useState<WatermarkConfig>(DEFAULT_WATERMARK_CONFIG);
 
@@ -51,6 +53,9 @@ function App() {
       handler: () => {
         if (isHelpOpen) {
           setIsHelpOpen(false);
+        }
+        if (isDonationOpen) {
+          setIsDonationOpen(false);
         }
       },
     },
@@ -193,7 +198,13 @@ function App() {
             <span>?</span> <span className="help-text-mobile">{t('help.title')}</span>
           </HeaderButton>
         </div>
-        <div style={{ position: 'absolute', right: 0, top: 0 }}>
+        <div style={{ position: 'absolute', right: 0, top: 0, display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <HeaderButton
+            onClick={() => setIsDonationOpen(true)}
+            ariaLabel={t('donation.ariaLabel')}
+          >
+            ☕ <span className="help-text-mobile">{t('donation.button')}</span>
+          </HeaderButton>
           <HeaderButton
             onClick={toggleLanguage}
             ariaLabel="Toggle language"
@@ -313,6 +324,7 @@ function App() {
         {t('footer.copyright')}
       </footer>
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+      <DonationModal isOpen={isDonationOpen} onClose={() => setIsDonationOpen(false)} />
       <ToastContainer toasts={toast.toasts} onRemove={toast.removeToast} />
     </div>
   );
