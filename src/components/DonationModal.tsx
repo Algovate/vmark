@@ -67,30 +67,28 @@ export const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose })
       maxWidth="500px"
       closeButtonAriaLabel={t('donation.close')}
       titleStyle={{ textAlign: 'center' }}
-      contentStyle={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem' }}
+      contentStyle={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', width: '100%' }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', width: '100%' }}>
-        {ALIPAY_QR_CODE_URL && (
-          <div style={QR_CODE_CONTAINER_STYLE}>
-            <div style={QR_CODE_WRAPPER_STYLE}>
-              <img
-                src={ALIPAY_QR_CODE_URL}
-                alt="Alipay QR Code"
-                style={QR_CODE_IMAGE_STYLE}
-              />
-            </div>
-            <p style={{ color: 'var(--text-secondary)', textAlign: 'center', fontSize: '0.875rem' }}>
-              {t('donation.scanQR')}
-            </p>
+      {ALIPAY_QR_CODE_URL && (
+        <div style={QR_CODE_CONTAINER_STYLE}>
+          <div style={QR_CODE_WRAPPER_STYLE}>
+            <img
+              src={ALIPAY_QR_CODE_URL}
+              alt="Alipay QR Code"
+              style={QR_CODE_IMAGE_STYLE}
+            />
           </div>
-        )}
+          <p style={{ color: 'var(--text-secondary)', textAlign: 'center', fontSize: '0.875rem' }}>
+            {t('donation.scanQR')}
+          </p>
+        </div>
+      )}
 
-        {shouldShowButton && (
-          <button onClick={handleOpenAlipay} className="btn-primary" style={BUTTON_STYLE}>
-            {t('donation.openAlipay')}
-          </button>
-        )}
-      </div>
+      {shouldShowButton && (
+        <button onClick={handleOpenAlipay} className="btn-primary" style={BUTTON_STYLE}>
+          {t('donation.openAlipay')}
+        </button>
+      )}
     </Modal>
   );
 };

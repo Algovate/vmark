@@ -82,7 +82,11 @@ export const Modal: React.FC<ModalProps> = ({
         >
           {title}
         </h2>
-        {contentStyle ? <div style={contentStyle}>{children}</div> : children}
+        {contentStyle && Object.keys(contentStyle).length > 0 ? (
+          <div style={contentStyle}>{children}</div>
+        ) : (
+          children
+        )}
       </div>
     </div>
   );
