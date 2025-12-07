@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { type ReactNode } from 'react';
 import { useModal } from '../hooks/useModal';
 import { ModalCloseButton } from './ModalCloseButton';
 
